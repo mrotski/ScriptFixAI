@@ -73,7 +73,14 @@
             <label for="provider">AI provider</label><select id="provider" class="provider-select"><option value="local">Local Ollama — on this computer</option><option value="puter">Puter Cloud — no API key</option><option value="cloud">OpenAI-compatible API</option></select>
             <label for="apiKey" id="apiKeyLabel">API key</label><input id="apiKey" class="cloud-setting" type="password" placeholder="sk-…" autocomplete="off" />
             <div class="field-row"><div><label for="model">Model</label><input id="model" type="text" placeholder="llama3.2" /></div><div class="cloud-setting"><label for="endpoint">API endpoint</label><input id="endpoint" type="url" placeholder="https://api.openai.com/v1/chat/completions" /></div></div>
-            <div id="localNote" class="dialog-note">Local model: <code>llama3.2</code>. Ollama is installed on this computer. If it is not running, ScriptFix will start it when you send a message.</div>
+            <div id="localNote" class="dialog-note">Use the model shelf below to find and download a local coding model. Ollama is needed as the model runner; ScriptFix can start it for you.</div>
+            <div id="modelShelf" class="model-shelf" hidden>
+              <label for="modelSearch">Find a ready-to-use model</label><input id="modelSearch" type="search" placeholder="Search coding models…" />
+              <button id="installOllama" type="button" class="save-button install-ollama" hidden>Install Ollama automatically</button>
+              <div class="model-shelf-row"><select id="modelCatalog" class="provider-select" aria-label="Available models"></select><button id="installModel" type="button" class="save-button">Download</button></div>
+              <p id="modelStatus" class="model-status" aria-live="polite">Choose a model to see whether it is installed.</p>
+              <div class="model-links"><a href="https://ollama.com/search" target="_blank" rel="noopener noreferrer">Browse all models</a><a href="https://ollama.com/download/windows" target="_blank" rel="noopener noreferrer">Official download page</a></div>
+            </div>
             <div id="puterNote" class="dialog-note" hidden>Uses Puter Cloud with a lightweight model. No API key is needed, but Puter may ask you to sign in. Your messages and code are sent to Puter for processing; usage follows Puter account limits and terms.</div>
             <div id="cloudNote" class="dialog-note cloud-setting">Your API key is saved only in this browser. The selected API provider processes code you send it.</div>
           </section>

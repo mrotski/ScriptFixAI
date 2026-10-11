@@ -6,6 +6,13 @@
   const DEFAULT_MODEL = 'gpt-4.1-mini';
   const DEFAULT_PUTER_MODEL = 'gpt-5-nano';
   const DEFAULT_LOCAL_MODEL = 'llama3.2';
+  const LOCAL_MODEL_CATALOG = [
+    { name: 'qwen2.5-coder:1.5b', label: 'Qwen 2.5 Coder · small, good for modest computers' },
+    { name: 'qwen2.5-coder:3b', label: 'Qwen 2.5 Coder · balanced starter' },
+    { name: 'qwen2.5-coder:7b', label: 'Qwen 2.5 Coder · stronger, needs more memory' },
+    { name: 'llama3.2:3b', label: 'Llama 3.2 · general purpose, balanced starter' },
+    { name: 'deepseek-coder-v2:lite', label: 'DeepSeek Coder V2 Lite · coding focused' }
+  ];
   const DEFAULT_LOCAL_ENDPOINT = 'http://127.0.0.1:11434/v1/chat/completions';
   let attachedFile = null, busy = false, activeChat = null, selectedMode = 'fix';
   const modePrompts = {
@@ -59,6 +66,7 @@
     const provider = $('provider').value;
     const local = provider === 'local';
     const puter = provider === 'puter';
+    const localRunner = local && location.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(location.hostname) && location.port !== '11434';
     document.querySelectorAll('.cloud-setting').forEach(element => { element.hidden = local || puter; });
     $('apiKeyLabel').hidden = local || puter;
     $('localNote').hidden = !local;
@@ -73,6 +81,30 @@
       $('model').value = localStorage.getItem('scriptfix.model') || DEFAULT_MODEL;
       $('endpoint').value = localStorage.getItem('scriptfix.endpoint') || DEFAULT_ENDPOINT;
     }
+    $('modelShelf').hidden = !localRunner;
+    $('localNote').textContent = localRunner
+      ? 'Use the model shelf below to install Ollama and download a local coding model. These downloads stay on this computer.'
+      : 'This hosted page can connect to Ollama already installed on your computer, but it cannot install software. Run the included Ollama helper once and allow browser access to your local network.';
+  }
+  async function refreshModelShelf() {
+    const search = $('modelSearch');
+    const select = $('modelCatalog');
+    const query = search.value.trim().toLowerCase();
+    const matches = LOCAL_MODEL_CATALOG.filter(model => `${model.name} ${model.label}`.toLowerCase().includes(query));
+    select.replaceChildren(...matches.map(model => { const option = document.createElement('option'); option.value = model.name; option.textContent = model.label; return option; }));
+    if (!matches.length) { $('modelStatus').textContent = 'No matching suggestions. Clear the search to browse supported models.'; return; }
+    $('modelStatus').textContent = 'Checking your installed models…';
+    try {
+      const response = await fetch('/local-models', { cache: 'no-store' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error?.message || 'Could not connect to Ollama.');
+      $('installOllama').hidden = true;
+      const installed = new Set((data.models || []).map(model => model.name));
+      const selected = select.value;
+      select.querySelectorAll('option').forEach(option => { if (installed.has(option.value)) option.textContent += ' · installed'; });
+      if (selected) select.value = selected;
+      $('modelStatus').textContent = `${installed.size} model${installed.size === 1 ? '' : 's'} installed. Choose one and download it; the first download may take a while.`;
+    } catch (error) { $('installOllama').hidden = false; $('modelStatus').textContent = `Ollama isn’t ready yet. ${error.message}`; }
   }
   function showToast(text) {
     const toast = $('toast'); toast.textContent = text; toast.classList.add('show');
@@ -222,6 +254,7 @@
     applyTheme();
     syncProviderSettings();
     dialog.showModal();
+    if (!$('modelShelf').hidden) refreshModelShelf();
     setTimeout(() => (cfg.provider === 'cloud' ? $('apiKey') : $('model')).focus(), 50);
   }
   $('settingsButton').addEventListener('click', openSettings);
@@ -232,6 +265,41 @@
     applyTheme();
   });
   $('provider').addEventListener('change', syncProviderSettings);
+  $('modelSearch').addEventListener('input', refreshModelShelf);
+  $('modelCatalog').addEventListener('change', () => { $('model').value = $('modelCatalog').value; });
+  $('installOllama').addEventListener('click', async () => {
+    const button = $('installOllama'); button.disabled = true; button.textContent = 'Opening setup…';
+    try {
+      const response = await fetch('/install-ollama', { method: 'POST' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error?.message || `Could not start setup (${response.status}).`);
+      $('modelStatus').textContent = 'Follow the setup window. ScriptFix will connect automatically when Ollama is ready.';
+      const deadline = Date.now() + 10 * 60 * 1000;
+      while (Date.now() < deadline) {
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        const check = await fetch('/local-models', { cache: 'no-store' });
+        if (check.ok) { await refreshModelShelf(); showToast('Ollama is ready. Choose a model to download.'); return; }
+      }
+      $('modelStatus').textContent = 'Setup is taking longer than expected. When its window says Ollama is installed, select this shelf again to reconnect.';
+    } catch (error) { $('modelStatus').textContent = `Couldn’t start the Ollama setup helper. ${error.message}`; }
+    finally { button.disabled = false; button.textContent = 'Install Ollama automatically'; }
+  });
+  $('installModel').addEventListener('click', async () => {
+    const model = $('modelCatalog').value;
+    if (!model) return;
+    const button = $('installModel'); button.disabled = true; button.textContent = 'Downloading…';
+    $('modelStatus').textContent = `Downloading ${model}. Keep ScriptFix open; the first download may take several minutes.`;
+    try {
+      const response = await fetch('/install-model', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: model }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error?.message || `Download failed (${response.status}).`);
+      $('model').value = model; localStorage.setItem('scriptfix.localModel', model);
+      $('modelStatus').textContent = `${model} is ready. It’s now selected for local chats.`;
+      showToast('Model downloaded and selected.');
+      await refreshModelShelf();
+    } catch (error) { $('modelStatus').textContent = `Couldn’t download ${model}. ${error.message}`; }
+    finally { button.disabled = false; button.textContent = 'Download'; }
+  });
   $('saveSettings').addEventListener('click', () => {
     const provider = $('provider').value;
     const endpoint = $('endpoint').value.trim() || DEFAULT_ENDPOINT;
@@ -313,11 +381,13 @@
         return;
       }
       const local = cfg.provider === 'local';
-      const endpoint = local ? DEFAULT_LOCAL_ENDPOINT : cfg.endpoint;
+      const localRunner = location.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(location.hostname) && location.port !== '11434';
+      const endpoint = local ? (localRunner ? new URL('/local-chat', location.origin).href : DEFAULT_LOCAL_ENDPOINT) : cfg.endpoint;
       const headers = { 'Content-Type': 'application/json' };
       if (!local) headers.Authorization = `Bearer ${cfg.key}`;
       const response = await fetch(endpoint, {
         method: 'POST', headers,
+        ...(local && !localRunner ? { targetAddressSpace: 'loopback' } : {}),
         body: JSON.stringify({ model: local ? cfg.localModel : cfg.model, messages: [{ role: 'system', content: system }, ...activeChat.messages.map(message => ({ role: message.role, content: message.content }))], temperature: 0.2 })
       });
       const data = await response.json().catch(() => ({}));
@@ -344,7 +414,7 @@
         addMessage('assistant', `The API received the request but rejected it. Check the API error details below, then verify the key, model, and the selected organization or project in AI settings.\n\n${error.message}`);
       } else {
         addMessage('assistant', cfg.provider === 'local'
-          ? `I couldn’t reach Ollama on this computer. Make sure Ollama is installed, that your model (${cfg.localModel}) is available, and try again. The app can start Ollama’s local server automatically.\n\n${error.message}`
+          ? `I couldn’t reach Ollama on this computer. Make sure it is installed and that the model (${cfg.localModel}) is available. For the GitHub Pages version, run source\\Install Ollama.cmd once to allow this site in Ollama, then approve your browser’s local-network prompt if it appears.\n\n${error.message}`
           : cfg.provider === 'puter'
           ? `I couldn’t connect to Puter Cloud. Check your internet connection, allow the Puter sign-in window if prompted, and try again. If your account has reached its usage limit, check Puter account settings.\n\n${error.message}`
           : `I couldn’t connect to the AI service. Check your network connection, API endpoint, and whether the provider allows requests from a browser (CORS).\n\n${error.message}`);
