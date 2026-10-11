@@ -4,16 +4,17 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#92969e" />
+  <link rel="icon" href="source/app-icon.ico" sizes="any" />
   <title>ScriptFix AI</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="source/styles.css" />
 </head>
 <body>
   <main class="window">
     <header class="topbar">
-      <a class="brand" href="#" aria-label="ScriptFix AI home"><span class="brand-mark">⌘</span><span>scriptfix<span class="brand-ai">.ai</span></span></a>
+      <a class="brand" href="#" aria-label="ScriptFix AI home"><span class="brand-mark"><img src="source/logo.svg" alt="" /></span><span>scriptfix<span class="brand-ai">.ai</span></span></a>
       <span class="top-note"><i class="status-dot"></i> YOUR CODE, A LITTLE LESS BROKEN</span>
       <div class="topbar-actions">
         <button id="apiKeyButton" class="api-key-button" title="Add or update your API key"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="m11 12 8-8m-3 3 3 3m-6 0 3 3"/></svg><span>API key</span></button>
@@ -73,6 +74,6 @@
   </dialog>
   <div id="toast" class="toast" role="status"></div>
   <span id="appVersion" class="app-version" aria-label="App version"></span>
-  <script src="app.js"></script>
+  <script src="source/app.js"></script>
 </body>
 </html>
