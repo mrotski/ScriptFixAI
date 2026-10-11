@@ -14,6 +14,7 @@
     { name: 'deepseek-coder-v2:lite', label: 'DeepSeek Coder V2 Lite · coding focused' }
   ];
   const DEFAULT_LOCAL_ENDPOINT = 'http://127.0.0.1:11434/v1/chat/completions';
+  const desktopApp = new URLSearchParams(location.search).get('desktop') === '1' && Boolean(window.chrome?.webview);
   let attachedFile = null, busy = false, activeChat = null, selectedMode = 'fix';
   const modePrompts = {
     fix: [
@@ -33,10 +34,14 @@
 
   const localFileApp = location.protocol === 'file:';
   let puterSdkReady = Promise.resolve();
-  if (localFileApp) {
+  if (desktopApp) {
     $('provider').querySelector('option[value="puter"]')?.remove();
     if (localStorage.getItem('scriptfix.provider') === 'puter') localStorage.setItem('scriptfix.provider', 'local');
   } else {
+    $('provider').querySelector('option[value="local"]')?.remove();
+    if (localStorage.getItem('scriptfix.provider') === 'local') localStorage.setItem('scriptfix.provider', 'puter');
+  }
+  if (!localFileApp && !desktopApp) {
     puterSdkReady = new Promise(resolve => {
       const script = document.createElement('script');
       script.src = 'https://js.puter.com/v2/';
@@ -54,7 +59,7 @@
   }
   function loadSettings() {
     return {
-      provider: localStorage.getItem('scriptfix.provider') || 'local',
+      provider: localStorage.getItem('scriptfix.provider') || (desktopApp ? 'local' : 'puter'),
       key: localStorage.getItem('scriptfix.key') || '',
       endpoint: localStorage.getItem('scriptfix.endpoint') || DEFAULT_ENDPOINT,
       model: localStorage.getItem('scriptfix.model') || DEFAULT_MODEL,
@@ -71,6 +76,9 @@
     $('apiKeyLabel').hidden = local || puter;
     $('localNote').hidden = !local;
     $('puterNote').hidden = !puter;
+    document.querySelector('[data-settings-page="provider"] .dialog-intro').textContent = desktopApp
+      ? 'Choose where your code is processed. Local Ollama runs on this computer; cloud providers send messages to their service.'
+      : 'Choose a cloud provider for this browser. Local Ollama is available in the Windows app.';
     if (local) {
       $('model').value = localStorage.getItem('scriptfix.localModel') || DEFAULT_LOCAL_MODEL;
       $('endpoint').value = DEFAULT_LOCAL_ENDPOINT;
@@ -82,7 +90,9 @@
       $('endpoint').value = localStorage.getItem('scriptfix.endpoint') || DEFAULT_ENDPOINT;
     }
     $('modelShelf').hidden = !localRunner;
-    $('localNote').textContent = localRunner
+    $('localNote').textContent = desktopApp
+      ? 'Ollama runs on this computer. Use the shelf to install Ollama and download a model before chatting.'
+      : localRunner
       ? 'Use the model shelf below to install Ollama and download a local coding model. These downloads stay on this computer.'
       : 'This hosted page can connect to Ollama already installed on your computer, but it cannot install software. Run the included Ollama helper once and allow browser access to your local network.';
   }
@@ -157,6 +167,14 @@
     try { localStorage.setItem('scriptfix.chats', JSON.stringify(savedChats)); }
     catch { showToast('Chat history storage is full. Start a new conversation to save more.'); }
     renderChatHistory();
+    updateDesktopPromo();
+  }
+  function updateDesktopPromo() {
+    const card = $('desktopPromo');
+    if (!card) return;
+    const totalUserMessages = savedChats.reduce((total, chat) => total + (chat.messages || []).filter(message => message.role === 'user').length, 0);
+    const dismissed = localStorage.getItem('scriptfix.desktopPromoDismissed') === '1';
+    card.hidden = desktopApp || dismissed || totalUserMessages < 3;
   }
   function renderChatHistory() {
     const list = $('chatHistory'); list.replaceChildren();
@@ -169,6 +187,7 @@
       remove.addEventListener('click', event => { event.stopPropagation(); deleteChat(chat.id); });
       row.append(open, remove); list.append(row);
     });
+    updateDesktopPromo();
   }
   function openChat(id) {
     const chat = savedChats.find(item => item.id === id); if (!chat) return;
@@ -259,6 +278,18 @@
   }
   $('settingsButton').addEventListener('click', openSettings);
   $('apiKeyButton').addEventListener('click', openSettings);
+  if (desktopApp) {
+    $('desktopControls').hidden = false;
+    document.querySelectorAll('[data-window-action]').forEach(button => button.addEventListener('click', () => {
+      window.chrome?.webview?.postMessage(`window:${button.dataset.windowAction}`);
+    }));
+    document.querySelector('.topbar').addEventListener('dblclick', event => {
+      if (!event.target.closest('button,a')) window.chrome?.webview?.postMessage('window:maximize');
+    });
+    document.querySelector('.topbar').addEventListener('pointerdown', event => {
+      if (!event.target.closest('button,a')) window.chrome?.webview?.postMessage('window:drag');
+    });
+  }
   document.querySelectorAll('[data-settings-tab]').forEach(button => button.addEventListener('click', () => setSettingsCategory(button.dataset.settingsTab)));
   $('darkModeToggle').addEventListener('change', () => {
     localStorage.setItem('scriptfix.theme', $('darkModeToggle').checked ? 'dark' : 'light');
@@ -344,17 +375,62 @@
   $('sendButton').addEventListener('click', send);
   document.addEventListener('keydown', event => { if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); $('newChat').click(); } });
   renderChatHistory();
+  $('dismissDesktopPromo').addEventListener('click', () => { localStorage.setItem('scriptfix.desktopPromoDismissed', '1'); updateDesktopPromo(); });
   setChatMode('fix');
   applyTheme();
+  if (desktopApp) beginDesktopSetup();
   const savedActiveId = localStorage.getItem('scriptfix.activeChat');
   if (savedActiveId && savedChats.some(chat => chat.id === savedActiveId)) openChat(savedActiveId);
+
+  async function beginDesktopSetup() {
+    const screen = $('ollamaSetupScreen');
+    const title = $('setupTitle');
+    const description = $('setupDescription');
+    const continueButton = $('setupContinue');
+    screen.hidden = false;
+    let attempts = 0;
+    while (attempts < 240) {
+      attempts++;
+      try {
+        const response = await fetch('/local-models', { cache: 'no-store' });
+        if (response.ok) { screen.hidden = true; return; }
+        const statusResponse = await fetch('/ollama-setup-status', { cache: 'no-store' });
+        const status = statusResponse.ok ? await statusResponse.json() : {};
+        if (status.state === 'error') {
+          title.textContent = 'Ollama setup needs attention';
+          description.textContent = status.message || 'The automatic setup did not finish. You can continue using the desktop app and retry from AI settings.';
+          continueButton.hidden = false;
+        } else if (status.state === 'installing') {
+          title.textContent = 'Installing Ollama';
+          description.textContent = 'The download is complete. Ollama is being installed on this computer.';
+          continueButton.hidden = true;
+        } else if (status.state === 'verifying') {
+          title.textContent = 'Verifying the download';
+          description.textContent = 'Checking the official installer before it runs.';
+          continueButton.hidden = true;
+        } else {
+          title.textContent = 'Downloading Ollama';
+          description.textContent = 'Getting the official installer. This can take a few minutes; ScriptFix will continue automatically when it’s ready.';
+          continueButton.hidden = true;
+        }
+      } catch {
+        title.textContent = 'Preparing your desktop AI';
+        description.textContent = 'Starting the local setup. This screen will close automatically when Ollama is ready.';
+      }
+      await new Promise(resolve => setTimeout(resolve, 2500));
+    }
+    title.textContent = 'Setup is taking longer than expected';
+    description.textContent = 'Ollama may still be downloading. You can keep waiting or continue and check AI settings later.';
+    continueButton.hidden = false;
+  }
+  $('setupContinue').addEventListener('click', () => { $('ollamaSetupScreen').hidden = true; });
 
   async function send() {
     if (busy) return;
     const userText = promptBox.value.trim();
     if (!userText && !attachedFile) { showToast('Write a message or attach a script first.'); promptBox.focus(); return; }
     const cfg = loadSettings();
-    if (localFileApp) { showToast('Open ScriptFix AI from a local web server or hosted website to connect to an AI service.'); return; }
+    if (localFileApp && !desktopApp) { showToast('Open ScriptFix AI from a local web server or hosted website to connect to an AI service.'); return; }
     if (cfg.provider === 'cloud' && !cfg.key) { openSettings(); showToast('Add your API key to get started.'); return; }
     const fileForRequest = attachedFile;
     const displayText = [userText, fileForRequest ? `📎 ${fileForRequest.name}` : ''].filter(Boolean).join('\n');
@@ -387,7 +463,7 @@
       if (!local) headers.Authorization = `Bearer ${cfg.key}`;
       const response = await fetch(endpoint, {
         method: 'POST', headers,
-        ...(local && !localRunner ? { targetAddressSpace: 'loopback' } : {}),
+        ...(local && desktopApp && !localRunner ? { targetAddressSpace: 'loopback' } : {}),
         body: JSON.stringify({ model: local ? cfg.localModel : cfg.model, messages: [{ role: 'system', content: system }, ...activeChat.messages.map(message => ({ role: message.role, content: message.content }))], temperature: 0.2 })
       });
       const data = await response.json().catch(() => ({}));

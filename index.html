@@ -16,9 +16,10 @@
     <header class="topbar">
       <a class="brand" href="#" aria-label="ScriptFix AI home"><span class="brand-mark"><img src="source/logo.svg" alt="" /></span><span>scriptfix<span class="brand-ai">.ai</span></span></a>
       <span class="top-note"><i class="status-dot"></i> YOUR CODE, A LITTLE LESS BROKEN</span>
-      <div class="topbar-actions">
+        <div class="topbar-actions">
         <button id="apiKeyButton" class="api-key-button" title="Add or update your API key"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="m11 12 8-8m-3 3 3 3m-6 0 3 3"/></svg><span>API key</span></button>
         <button class="settings-button" id="settingsButton" title="AI settings" aria-label="AI settings"><svg viewBox="0 0 24 24"><path d="M12 8.3a3.7 3.7 0 1 0 0 7.4 3.7 3.7 0 0 0 0-7.4Zm9.1 4.8v-2.2l-2.3-.7a7.6 7.6 0 0 0-.7-1.7l1.2-2.1-1.6-1.6-2.1 1.2a7.6 7.6 0 0 0-1.7-.7L13.2 3h-2.3l-.7 2.3a7.6 7.6 0 0 0-1.7.7L6.4 4.8 4.8 6.4 6 8.5a7.6 7.6 0 0 0-.7 1.7l-2.3.7v2.3l2.3.7a7.6 7.6 0 0 0 .7 1.7l-1.2 2.1 1.6 1.6 2.1-1.2a7.6 7.6 0 0 0 1.7.7l.7 2.3h2.3l.7-2.3a7.6 7.6 0 0 0 1.7-.7l2.1 1.2 1.6-1.6L18 15.6a7.6 7.6 0 0 0 .7-1.7Z"/></svg></button>
+          <div id="desktopControls" class="desktop-controls" hidden aria-label="Window controls"><button type="button" data-window-action="minimize" aria-label="Minimize" title="Minimize">−</button><button type="button" data-window-action="maximize" aria-label="Maximize" title="Maximize">□</button><button type="button" data-window-action="close" aria-label="Close" title="Close">×</button></div>
       </div>
     </header>
     <section class="workspace">
@@ -30,6 +31,13 @@
         <div class="side-label">GET STARTED</div>
         <div class="hint-card"><div class="hint-icon">↥</div><div><strong>Drop in a script</strong><p>or click below to pick a file</p></div></div>
         <button id="uploadSide" class="upload-side">Choose a file <span>↗</span></button>
+        <section id="desktopPromo" class="desktop-promo" hidden aria-label="Desktop app information">
+          <button id="dismissDesktopPromo" class="promo-dismiss" type="button" aria-label="Dismiss">×</button>
+          <div class="promo-icon">✳</div>
+          <strong>Get unlimited access to AI with the desktop app</strong>
+          <p>Run a coding model on your computer with no API key or usage credits.</p>
+          <a href="ScriptFix%20AI.exe" download>Get the desktop app <span>↗</span></a>
+        </section>
         <div class="sidebar-footer"><span class="privacy-icon">◈</span><span>Chats are saved in this browser.</span></div>
       </aside>
       <section class="chat-area">
@@ -58,6 +66,16 @@
       </section>
     </section>
   </main>
+  <section id="ollamaSetupScreen" class="setup-screen" hidden role="status" aria-live="polite">
+    <div class="setup-card">
+      <div class="setup-spinner" aria-hidden="true"></div>
+      <div class="dialog-kicker">ONE-TIME LOCAL SETUP</div>
+      <h1 id="setupTitle">Preparing your desktop AI</h1>
+      <p id="setupDescription">Downloading and installing Ollama. This can take a few minutes; ScriptFix will continue automatically when it’s ready.</p>
+      <div class="setup-progress"><i></i></div>
+      <button id="setupContinue" type="button" hidden>Continue without local AI</button>
+    </div>
+  </section>
   <dialog id="settingsDialog" class="settings-dialog">
     <form method="dialog" id="settingsForm">
       <div class="dialog-head"><div><div class="dialog-kicker">PERSONALISE YOUR SETUP</div><h2>AI settings</h2></div><button class="close-button" value="cancel" aria-label="Close">×</button></div>

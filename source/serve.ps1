@@ -1,3 +1,5 @@
+param([switch]$Desktop, [string]$ReadyFile)
+
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
@@ -13,14 +15,25 @@ $knownOllamaPaths = @(
 )
 $ollamaCommand = Get-Command ollama.exe -ErrorAction SilentlyContinue
 $ollamaInstalled = $ollamaCommand -or ($knownOllamaPaths | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1)
-if (-not $ollamaInstalled) {
+$setupStatusPath = Join-Path $env:LOCALAPPDATA 'ScriptFixAI\ollama-setup-status.json'
+if ($Desktop -and -not $ollamaInstalled) {
     $installerHelper = Join-Path $PSScriptRoot 'InstallOllama.ps1'
     if (Test-Path -LiteralPath $installerHelper -PathType Leaf) {
-        Write-Host 'Ollama is not installed. Starting the verified setup helper…'
-        Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$installerHelper`"") -WindowStyle Normal
+        try {
+            Write-Host 'Ollama is not installed. Starting the verified setup helper…'
+            New-Item -ItemType Directory -Path (Split-Path -Parent $setupStatusPath) -Force | Out-Null
+            Set-Content -LiteralPath $setupStatusPath -Value (@{ state = 'downloading'; message = '' } | ConvertTo-Json -Compress) -Encoding UTF8
+            Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$installerHelper`"") -WindowStyle Normal -ErrorAction Stop | Out-Null
+        } catch {
+            Set-Content -LiteralPath $setupStatusPath -Value (@{ state = 'error'; message = $_.Exception.Message } | ConvertTo-Json -Compress) -Encoding UTF8 -ErrorAction SilentlyContinue
+            Write-Warning "Could not start the Ollama installer automatically: $($_.Exception.Message)"
+        }
+    } else {
+        Write-Warning 'Ollama is not installed, and the setup helper is missing from the source folder.'
     }
 }
-Start-Process $url
+if ($ReadyFile) { Set-Content -LiteralPath $ReadyFile -Value $url -Encoding ASCII }
+if (-not $Desktop) { Start-Process $url }
 
 $mimeTypes = @{
     '.html' = 'text/html; charset=utf-8'
@@ -119,6 +132,16 @@ try {
                     $json = @{ error = @{ message = $_.Exception.Message } } | ConvertTo-Json -Compress
                     Write-Response $stream '500 Internal Server Error' 'application/json; charset=utf-8' ([Text.Encoding]::UTF8.GetBytes($json)) $method
                 }
+                continue
+            }
+
+            if ($requestPath -eq '/ollama-setup-status' -and $method -eq 'GET') {
+                if (Test-Path -LiteralPath $setupStatusPath -PathType Leaf) {
+                    $json = Get-Content -LiteralPath $setupStatusPath -Raw
+                } else {
+                    $json = @{ state = 'idle'; message = '' } | ConvertTo-Json -Compress
+                }
+                Write-Response $stream '200 OK' 'application/json; charset=utf-8' ([Text.Encoding]::UTF8.GetBytes($json)) $method
                 continue
             }
 

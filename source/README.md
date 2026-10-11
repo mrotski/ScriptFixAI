@@ -2,13 +2,17 @@
 
 A small, editable code-fixing assistant with a frosted-glass chat interface.
 
-## Run in a browser
+## Windows app
 
-Double-click `Open in Browser.cmd` to serve the app locally and open it in your browser. Keep the command window open while using ScriptFix AI; press Ctrl+C in that window to stop the local server. You can also host `index.html` and the `source` folder together on a website. Opening the HTML file directly is blocked by browser security for AI connections.
+Run `ScriptFix AI.exe` from the project folder. Keep `index.html` and the `source` folder beside it. The app opens in a custom borderless window, starts its private local web server, and offers local Ollama plus an OpenAI-compatible cloud API. If Ollama is missing, the app starts the verified Ollama setup helper. It installs Ollama for your Windows account at `%LOCALAPPDATA%\ScriptFixAI\Ollama`; model downloads are separate and can be several gigabytes. The app uses the Microsoft Edge WebView2 Runtime. If it is missing, install the Evergreen Runtime from Microsoft's [WebView2 download page](https://developer.microsoft.com/microsoft-edge/webview2/).
 
-## Use local AI
+## Browser version
 
-ScriptFix uses local models through Ollama. On startup, `Open in Browser.cmd` checks for Ollama and starts the setup helper if it is missing. The helper downloads the official installer, verifies its signature belongs to Ollama Inc., and installs it for your Windows account at `%LOCALAPPDATA%\ScriptFixAI\Ollama` without administrator access. It also allows `https://mrotski.github.io` in Ollama's browser-origin settings. You can also choose **Install Ollama automatically** in AI settings or double-click `source\Install Ollama.cmd`. AI settings includes a searchable starter shelf to download and select coding models. Model downloads require an internet connection and can be several gigabytes; later chats run on your computer without API keys or credits. You can browse the full Ollama model library from the shelf. GitHub Pages cannot install Ollama itself; users must run the helper on their computer, and their browser may ask permission to access local network services.
+Double-click `Open in Browser.cmd` to open the web version locally. It offers cloud providers only; local Ollama is available in the Windows app. You can also host `index.html` and the `source` folder on GitHub Pages. The browser version works with Puter Cloud and OpenAI-compatible APIs.
+
+## Local AI
+
+The Windows app runs local models through Ollama. AI settings includes a searchable starter shelf to download and select coding models. You can also install Ollama separately by double-clicking `source\Install Ollama.cmd`. The helper downloads the official installer, verifies its signature belongs to Ollama Inc., and installs without administrator access. The local model runs on your computer and does not need API keys or credits.
 
 New chats offer **Fix code** and **Create code** modes. Create Code focuses the assistant on producing small, runnable pieces of code; each saved chat remembers its mode.
 
@@ -27,9 +31,12 @@ Open AI settings, choose **OpenAI-compatible API**, enter an API key, choose a m
 ## Tweak it
 
 - `index.html` — layout and interface text
+- `ScriptFix AI.exe` — borderless Windows app
 - `Open in Browser.cmd` — starts the local browser version
 - `source/serve.ps1` — small localhost web server used by the browser shortcut
 - `source/Install Ollama.cmd` and `source/InstallOllama.ps1` — per-user Ollama setup helper
+- `source/desktop/Program.cs` — editable Windows app host source
+- `source/desktop/runtime` — Microsoft WebView2 libraries used by the app
 - `source/styles.css` — colors, spacing, and glass effects
 - `source/app.js` — chat behavior and API request
 - `source/logo.svg` — custom vector logo, rendered consistently across operating systems

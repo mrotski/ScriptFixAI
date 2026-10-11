@@ -4,8 +4,14 @@ $ProgressPreference = 'SilentlyContinue'
 $installDir = Join-Path $env:LOCALAPPDATA 'ScriptFixAI\Ollama'
 $installerPath = Join-Path $env:TEMP 'ScriptFixAI-OllamaSetup.exe'
 $installerUrl = 'https://ollama.com/download/OllamaSetup.exe'
+$statusPath = Join-Path $env:LOCALAPPDATA 'ScriptFixAI\ollama-setup-status.json'
+function Write-SetupStatus([string]$state, [string]$message = '') {
+    New-Item -ItemType Directory -Path (Split-Path -Parent $statusPath) -Force | Out-Null
+    Set-Content -LiteralPath $statusPath -Value (@{ state = $state; message = $message } | ConvertTo-Json -Compress) -Encoding UTF8
+}
 
 try {
+    Write-SetupStatus 'downloading'
     Write-Host ''
     Write-Host 'ScriptFix AI — Install local Ollama' -ForegroundColor Cyan
     Write-Host 'This downloads Ollama and installs it for your Windows account.'
@@ -16,6 +22,7 @@ try {
     Invoke-WebRequest -Uri $installerUrl -OutFile $installerPath
 
     Write-Host 'Checking the installer signature…'
+    Write-SetupStatus 'verifying'
     $signature = Get-AuthenticodeSignature -FilePath $installerPath
     if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch '(^|,\s*)O=Ollama Inc\.(,|$)') {
         throw 'The downloaded installer signature could not be verified as Ollama Inc. The installer was not run.'
@@ -30,6 +37,7 @@ try {
 
     New-Item -ItemType Directory -Path $installDir -Force | Out-Null
     Write-Host 'Installing Ollama…'
+    Write-SetupStatus 'installing'
     $arguments = "/VERYSILENT /NORESTART /SUPPRESSMSGBOXES /DIR=`"$installDir`""
     $process = Start-Process -FilePath $installerPath -ArgumentList $arguments -Wait -PassThru
     if ($process.ExitCode -ne 0) { throw "Ollama setup exited with code $($process.ExitCode)." }
@@ -40,7 +48,9 @@ try {
     }
     Write-Host ''
     Write-Host 'Ollama is installed. Close and reopen ScriptFix AI, then download a model in AI settings.' -ForegroundColor Green
+    Write-SetupStatus 'complete'
 } catch {
+    Write-SetupStatus 'error' $_.Exception.Message
     Write-Host ''
     Write-Host "Setup did not finish: $($_.Exception.Message)" -ForegroundColor Red
     Write-Host 'You can retry this helper or install Ollama from https://ollama.com/download/windows.'
