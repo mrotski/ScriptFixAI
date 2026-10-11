@@ -18,12 +18,7 @@
       <span class="top-note"><i class="status-dot"></i> YOUR CODE, A LITTLE LESS BROKEN</span>
       <div class="topbar-actions">
         <button id="apiKeyButton" class="api-key-button" title="Add or update your API key"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="m11 12 8-8m-3 3 3 3m-6 0 3 3"/></svg><span>API key</span></button>
-        <div class="window-controls" aria-label="Window controls">
-          <button id="minimizeWindow" class="window-control" title="Minimize" aria-label="Minimize window"><span>−</span></button>
-          <button id="maximizeWindow" class="window-control" title="Maximize" aria-label="Maximize window"><span>□</span></button>
-          <button id="closeWindow" class="window-control" title="Close" aria-label="Close window"><span>×</span></button>
-        </div>
-      <button class="settings-button" id="settingsButton" title="AI settings" aria-label="AI settings"><svg viewBox="0 0 24 24"><path d="M12 8.3a3.7 3.7 0 1 0 0 7.4 3.7 3.7 0 0 0 0-7.4Zm9.1 4.8v-2.2l-2.3-.7a7.6 7.6 0 0 0-.7-1.7l1.2-2.1-1.6-1.6-2.1 1.2a7.6 7.6 0 0 0-1.7-.7L13.2 3h-2.3l-.7 2.3a7.6 7.6 0 0 0-1.7.7L6.4 4.8 4.8 6.4 6 8.5a7.6 7.6 0 0 0-.7 1.7l-2.3.7v2.3l2.3.7a7.6 7.6 0 0 0 .7 1.7l-1.2 2.1 1.6 1.6 2.1-1.2a7.6 7.6 0 0 0 1.7.7l.7 2.3h2.3l.7-2.3a7.6 7.6 0 0 0 1.7-.7l2.1 1.2 1.6-1.6L18 15.6a7.6 7.6 0 0 0 .7-1.7Z"/></svg></button>
+        <button class="settings-button" id="settingsButton" title="AI settings" aria-label="AI settings"><svg viewBox="0 0 24 24"><path d="M12 8.3a3.7 3.7 0 1 0 0 7.4 3.7 3.7 0 0 0 0-7.4Zm9.1 4.8v-2.2l-2.3-.7a7.6 7.6 0 0 0-.7-1.7l1.2-2.1-1.6-1.6-2.1 1.2a7.6 7.6 0 0 0-1.7-.7L13.2 3h-2.3l-.7 2.3a7.6 7.6 0 0 0-1.7.7L6.4 4.8 4.8 6.4 6 8.5a7.6 7.6 0 0 0-.7 1.7l-2.3.7v2.3l2.3.7a7.6 7.6 0 0 0 .7 1.7l-1.2 2.1 1.6 1.6 2.1-1.2a7.6 7.6 0 0 0 1.7.7l.7 2.3h2.3l.7-2.3a7.6 7.6 0 0 0 1.7-.7l2.1 1.2 1.6-1.6L18 15.6a7.6 7.6 0 0 0 .7-1.7Z"/></svg></button>
       </div>
     </header>
     <section class="workspace">
@@ -41,9 +36,13 @@
         <div class="chat-scroll" id="chatScroll">
           <div class="welcome" id="welcome">
             <div class="orb-wrap"><div class="orb"><span>✳</span></div><span class="orb-spark spark-one">✦</span><span class="orb-spark spark-two">✧</span></div>
-            <div class="welcome-kicker">A FRESH PAIR OF EYES</div>
-            <h1>Let’s make it<br/><span>work beautifully.</span></h1>
-            <p>Paste your code, attach a script, or tell me what went wrong.<br/>We’ll figure it out together.</p>
+            <div class="welcome-kicker">START A NEW CHAT</div>
+            <h1>What are we<br/><span>working on?</span></h1>
+            <p id="welcomeDescription">Choose a mode, then paste your code or describe what went wrong.</p>
+            <div class="mode-picker" role="group" aria-label="Choose a chat mode">
+              <button class="mode-choice selected" type="button" data-mode="fix" aria-pressed="true"><span class="mode-symbol">⌕</span><span><strong>Fix code</strong><small>Debug and improve</small></span></button>
+              <button class="mode-choice" type="button" data-mode="create" aria-pressed="false"><span class="mode-symbol">✳</span><span><strong>Create code</strong><small>Build something new</small></span></button>
+            </div>
             <div class="suggestions"><button class="suggestion" data-prompt="Help me find and fix the bug in this code.">⌕ <span>Find a bug</span> <b>↗</b></button><button class="suggestion" data-prompt="Review this code, explain potential problems, and suggest an improved version.">✳ <span>Review my code</span> <b>↗</b></button><button class="suggestion" data-prompt="Explain what this code does, step by step.">⌁ <span>Explain this script</span> <b>↗</b></button></div>
           </div>
           <div id="messages" class="messages" aria-live="polite"></div>
@@ -62,14 +61,35 @@
   <dialog id="settingsDialog" class="settings-dialog">
     <form method="dialog" id="settingsForm">
       <div class="dialog-head"><div><div class="dialog-kicker">PERSONALISE YOUR SETUP</div><h2>AI settings</h2></div><button class="close-button" value="cancel" aria-label="Close">×</button></div>
-      <p class="dialog-intro">Choose where your code is processed. Local Ollama runs on this computer and needs no API key or credits.</p>
-      <label for="provider">AI provider</label><select id="provider" class="provider-select"><option value="local">Local Ollama — on this computer</option><option value="puter">Puter Cloud — no API key</option><option value="cloud">OpenAI-compatible API</option></select>
-      <label for="apiKey" id="apiKeyLabel">API key</label><input id="apiKey" class="cloud-setting" type="password" placeholder="sk-…" autocomplete="off" />
-      <div class="field-row"><div><label for="model">Model</label><input id="model" type="text" placeholder="llama3.2" /></div><div class="cloud-setting"><label for="endpoint">API endpoint</label><input id="endpoint" type="url" placeholder="https://api.openai.com/v1/chat/completions" /></div></div>
-      <div id="localNote" class="dialog-note">Local model: <code>llama3.2</code>. Ollama is installed on this computer. If it is not running, ScriptFix will start it when you send a message.</div>
-      <div id="puterNote" class="dialog-note" hidden>Uses Puter Cloud with a lightweight model. No API key is needed, but Puter may ask you to sign in. Your messages and code are sent to Puter for processing; usage follows Puter account limits and terms.</div>
-      <div id="cloudNote" class="dialog-note cloud-setting">Your API key is saved only in this browser. The selected API provider processes code you send it.</div>
-      <div class="dialog-actions"><button type="button" id="clearKey" class="clear-button">Clear saved key</button><button type="button" id="saveSettings" class="save-button">Save settings <span>↗</span></button></div>
+      <div class="settings-layout">
+        <nav class="settings-nav" aria-label="Settings categories">
+          <button type="button" class="settings-nav-item active" data-settings-tab="provider" aria-current="page">AI provider</button>
+          <button type="button" class="settings-nav-item" data-settings-tab="appearance">Appearance</button>
+          <button type="button" class="settings-nav-item" data-settings-tab="privacy">Privacy &amp; data</button>
+        </nav>
+        <div class="settings-content">
+          <section class="settings-page active" data-settings-page="provider">
+            <p class="dialog-intro">Choose where your code is processed. Local Ollama runs on this computer and needs no API key or credits.</p>
+            <label for="provider">AI provider</label><select id="provider" class="provider-select"><option value="local">Local Ollama — on this computer</option><option value="puter">Puter Cloud — no API key</option><option value="cloud">OpenAI-compatible API</option></select>
+            <label for="apiKey" id="apiKeyLabel">API key</label><input id="apiKey" class="cloud-setting" type="password" placeholder="sk-…" autocomplete="off" />
+            <div class="field-row"><div><label for="model">Model</label><input id="model" type="text" placeholder="llama3.2" /></div><div class="cloud-setting"><label for="endpoint">API endpoint</label><input id="endpoint" type="url" placeholder="https://api.openai.com/v1/chat/completions" /></div></div>
+            <div id="localNote" class="dialog-note">Local model: <code>llama3.2</code>. Ollama is installed on this computer. If it is not running, ScriptFix will start it when you send a message.</div>
+            <div id="puterNote" class="dialog-note" hidden>Uses Puter Cloud with a lightweight model. No API key is needed, but Puter may ask you to sign in. Your messages and code are sent to Puter for processing; usage follows Puter account limits and terms.</div>
+            <div id="cloudNote" class="dialog-note cloud-setting">Your API key is saved only in this browser. The selected API provider processes code you send it.</div>
+          </section>
+          <section class="settings-page" data-settings-page="appearance" hidden>
+            <p class="dialog-intro">Adjust how ScriptFix AI looks on this device.</p>
+            <label class="setting-toggle-row" for="darkModeToggle"><span><strong>Dark mode</strong><small>Use a calm dark palette throughout the app.</small></span><input id="darkModeToggle" type="checkbox" /><i aria-hidden="true"></i></label>
+          </section>
+          <section class="settings-page" data-settings-page="privacy" hidden>
+            <p class="dialog-intro">Your saved chats and settings stay in this browser on this device.</p>
+            <div class="privacy-setting"><strong>Local Ollama</strong><span>Processes code on this computer.</span></div>
+            <div class="privacy-setting"><strong>Cloud providers</strong><span>Receive the messages and code you send while that provider is selected.</span></div>
+            <button type="button" id="clearKey" class="clear-button">Clear saved API key</button>
+          </section>
+        </div>
+      </div>
+      <div class="dialog-actions"><span class="settings-save-hint">Changes are saved on this device.</span><button type="button" id="saveSettings" class="save-button">Save settings <span>↗</span></button></div>
     </form>
   </dialog>
   <div id="toast" class="toast" role="status"></div>
