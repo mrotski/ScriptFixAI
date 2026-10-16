@@ -24,7 +24,9 @@ Choose **Puter Cloud — no API key** on a hosted website or localhost address. 
 
 ## Connect a cloud AI model
 
-Settings are grouped into **AI provider**, **Appearance**, and **Privacy & data** categories. Toggle dark mode in Appearance; the choice is saved in this browser.
+Settings are grouped into **AI provider**, **Appearance**, **Usage**, **Info of this version**, and **Privacy & data** categories. Toggle dark mode in Appearance; the choice is saved in this browser.
+
+The **Usage** category can estimate monthly API budget remaining. Choose a model and budget, then review or edit its input/output token prices. Estimates are stored locally and count only successful API responses that include token usage; they are not a live provider balance. Local Ollama and Puter usage are not included.
 
 Open AI settings, choose **OpenAI-compatible API**, enter an API key, choose a model, and save. The default endpoint is OpenAI's chat-completions endpoint, and the default model is `gpt-4.1-mini`. The key is stored in the browser's local storage; code you send is processed by the API provider you configure.
 
@@ -42,5 +44,8 @@ Open AI settings, choose **OpenAI-compatible API**, enter an API key, choose a m
 - `source/logo.svg` — custom vector logo, rendered consistently across operating systems
 - `source/app-icon.ico` — browser favicon
 - `source/version.txt` — displayed app version; edit this file to change the version shown in the app and hosted website
+- `source/versioninfo.txt` — editable release notes, fixed bugs, and known issues shown in Settings
 
 Puter Cloud needs an internet connection and loads its JavaScript SDK from Puter. The OpenAI-compatible API option makes browser requests directly, so its service must permit browser requests (CORS).
+
+

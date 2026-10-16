@@ -23,7 +23,7 @@ if ($Desktop -and -not $ollamaInstalled) {
             Write-Host 'Ollama is not installed. Starting the verified setup helper…'
             New-Item -ItemType Directory -Path (Split-Path -Parent $setupStatusPath) -Force | Out-Null
             Set-Content -LiteralPath $setupStatusPath -Value (@{ state = 'downloading'; message = '' } | ConvertTo-Json -Compress) -Encoding UTF8
-            Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$installerHelper`"") -WindowStyle Normal -ErrorAction Stop | Out-Null
+            Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$installerHelper`"") -WindowStyle Hidden -ErrorAction Stop | Out-Null
         } catch {
             Set-Content -LiteralPath $setupStatusPath -Value (@{ state = 'error'; message = $_.Exception.Message } | ConvertTo-Json -Compress) -Encoding UTF8 -ErrorAction SilentlyContinue
             Write-Warning "Could not start the Ollama installer automatically: $($_.Exception.Message)"
@@ -125,10 +125,13 @@ try {
                 try {
                     $installerHelper = Join-Path $PSScriptRoot 'InstallOllama.ps1'
                     if (-not (Test-Path -LiteralPath $installerHelper -PathType Leaf)) { throw 'The Ollama setup helper is missing.' }
-                    Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$installerHelper`"") -WindowStyle Normal
+                    New-Item -ItemType Directory -Path (Split-Path -Parent $setupStatusPath) -Force | Out-Null
+                    Set-Content -LiteralPath $setupStatusPath -Value (@{ state = 'downloading'; message = '' } | ConvertTo-Json -Compress) -Encoding UTF8
+                    Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$installerHelper`"") -WindowStyle Hidden -ErrorAction Stop | Out-Null
                     $json = @{ started = $true } | ConvertTo-Json -Compress
                     Write-Response $stream '202 Accepted' 'application/json; charset=utf-8' ([Text.Encoding]::UTF8.GetBytes($json)) $method
                 } catch {
+                    Set-Content -LiteralPath $setupStatusPath -Value (@{ state = 'error'; message = $_.Exception.Message } | ConvertTo-Json -Compress) -Encoding UTF8 -ErrorAction SilentlyContinue
                     $json = @{ error = @{ message = $_.Exception.Message } } | ConvertTo-Json -Compress
                     Write-Response $stream '500 Internal Server Error' 'application/json; charset=utf-8' ([Text.Encoding]::UTF8.GetBytes($json)) $method
                 }

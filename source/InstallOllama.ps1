@@ -54,10 +54,8 @@ try {
     Write-Host ''
     Write-Host "Setup did not finish: $($_.Exception.Message)" -ForegroundColor Red
     Write-Host 'You can retry this helper or install Ollama from https://ollama.com/download/windows.'
-    $host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown') | Out-Null
     exit 1
 } finally {
     Remove-Item -LiteralPath $installerPath -Force -ErrorAction SilentlyContinue
 }
 
-Read-Host 'Press Enter to close'

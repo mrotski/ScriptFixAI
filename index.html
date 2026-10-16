@@ -12,6 +12,10 @@
   <link rel="stylesheet" href="source/styles.css" />
 </head>
 <body>
+  <div id="appBootScreen" style="position:fixed;inset:0;z-index:1000;display:grid;place-items:center;background:#92969e;color:#454b50;font:14px 'DM Sans',sans-serif;text-align:center">
+    <div><div style="width:34px;height:34px;margin:0 auto 14px;border:3px solid #ffffff70;border-top-color:#718579;border-radius:50%;animation:bootSpin .8s linear infinite"></div><strong id="appBootTitle">Opening ScriptFix AI…</strong><p id="appBootMessage" style="max-width:300px;color:#626970;font-size:12px;line-height:1.6">Preparing your workspace.</p></div>
+    <style>@keyframes bootSpin{to{transform:rotate(360deg)}}#appBootScreen[hidden]{display:none!important}</style>
+  </div>
   <main class="window">
     <header class="topbar">
       <a class="brand" href="#" aria-label="ScriptFix AI home"><span class="brand-mark"><img src="source/logo.svg" alt="" /></span><span>scriptfix<span class="brand-ai">.ai</span></span></a>
@@ -83,6 +87,8 @@
         <nav class="settings-nav" aria-label="Settings categories">
           <button type="button" class="settings-nav-item active" data-settings-tab="provider" aria-current="page">AI provider</button>
           <button type="button" class="settings-nav-item" data-settings-tab="appearance">Appearance</button>
+          <button type="button" class="settings-nav-item" data-settings-tab="usage">Usage</button>
+          <button type="button" class="settings-nav-item" data-settings-tab="version">Info of this version</button>
           <button type="button" class="settings-nav-item" data-settings-tab="privacy">Privacy &amp; data</button>
         </nav>
         <div class="settings-content">
@@ -105,6 +111,41 @@
           <section class="settings-page" data-settings-page="appearance" hidden>
             <p class="dialog-intro">Adjust how ScriptFix AI looks on this device.</p>
             <label class="setting-toggle-row" for="darkModeToggle"><span><strong>Dark mode</strong><small>Use a calm dark palette throughout the app.</small></span><input id="darkModeToggle" type="checkbox" /><i aria-hidden="true"></i></label>
+          </section>
+          <section class="settings-page" data-settings-page="usage" hidden>
+            <p class="dialog-intro">Set a monthly budget and choose the model you use. ScriptFix estimates spend from token usage returned by your API provider.</p>
+            <div id="usageSetup" class="usage-setup">
+              <label for="usageModel">Select a model</label>
+              <select id="usageModel" class="provider-select">
+                <option value="">Choose your model…</option>
+                <option value="gpt-6-luna" data-input-rate="0.10" data-output-rate="0.50">GPT-6 Luna</option>
+                <option value="gpt-6.1-sol" data-input-rate="2" data-output-rate="10">GPT-6.1 Sol</option>
+                <option value="gpt-6-astra" data-input-rate="10" data-output-rate="50">GPT-6 Astra</option>
+                <option value="gpt-4.1-mini" data-input-rate="0.40" data-output-rate="1.60">GPT-4.1 mini</option>
+                <option value="gpt-5-nano" data-input-rate="0.05" data-output-rate="0.40">GPT-5 nano</option>
+                <option value="custom">Custom model…</option>
+              </select>
+              <div id="customUsageModelWrap" hidden><label for="customUsageModel">Model name</label><input id="customUsageModel" type="text" placeholder="Your provider’s model ID" /></div>
+              <label for="usageBudget">Monthly budget (USD)</label><input id="usageBudget" type="number" min="0.01" step="0.01" placeholder="For example, 10.00" />
+              <div class="field-row usage-rates">
+                <div><label for="usageInputRate">Input price / 1M tokens</label><input id="usageInputRate" type="number" min="0" step="0.001" /></div>
+                <div><label for="usageOutputRate">Output price / 1M tokens</label><input id="usageOutputRate" type="number" min="0" step="0.001" /></div>
+              </div>
+              <p class="usage-note">Prices start with standard OpenAI rates and can be edited for your provider. Only requests that return token usage are counted. <a href="https://developers.openai.com/api/docs/pricing" target="_blank" rel="noopener noreferrer">View model pricing</a></p>
+              <button id="startUsageTracking" type="button" class="save-button">Start tracking</button>
+            </div>
+            <div id="usageDashboard" class="usage-dashboard" hidden>
+              <div class="usage-model-line"><span id="usageCurrentModel"></span><button id="editUsage" type="button" class="usage-edit">Change</button></div>
+              <div id="usagePercent" class="usage-percent">100% left</div>
+              <div id="usageMeter" class="usage-meter" role="meter" aria-label="Monthly budget remaining" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><i id="usageMeterFill"></i></div>
+              <div class="usage-totals"><span id="usageSpent">$0.00 spent</span><strong id="usageRemaining">$0.00 left</strong></div>
+              <p id="usageMonth" class="usage-note"></p>
+              <p id="usageTokenNote" class="usage-note">Estimates use usage data returned by the API. Check your provider’s billing page for the exact balance.</p>
+            </div>
+          </section>
+          <section class="settings-page" data-settings-page="version" hidden>
+            <p class="dialog-intro">Release notes, fixed bugs, and known issues for this version.</p>
+            <pre id="versionInfoContent" class="version-info-content" aria-live="polite">Loading version information…</pre>
           </section>
           <section class="settings-page" data-settings-page="privacy" hidden>
             <p class="dialog-intro">Your saved chats and settings stay in this browser on this device.</p>

@@ -1,0 +1,12 @@
+ScriptFix AI - version 1.3.0
+
+What does this version bring to SF?
+-AI usage tracking.
+-Local app improvements.
+
+Fixed bugs
+-Version information is visible again.
+-Local app Ollama installer no longer visible.
+
+Known issues
+-Local app Ollama installation taking a long time.
