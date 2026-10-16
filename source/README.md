@@ -26,7 +26,7 @@ Choose **Puter Cloud — no API key** on a hosted website or localhost address. 
 
 Settings are grouped into **AI provider**, **Appearance**, **Usage**, **Info of this version**, and **Privacy & data** categories. Toggle dark mode in Appearance; the choice is saved in this browser.
 
-The **Usage** category can estimate monthly API budget remaining. Choose a model and budget, then review or edit its input/output token prices. Estimates are stored locally and count only successful API responses that include token usage; they are not a live provider balance. Local Ollama and Puter usage are not included.
+The **Usage** category shows Puter’s live monthly account allowance when Puter Cloud is selected. For an OpenAI-compatible API, enter a monthly budget; ScriptFix follows the model selected in AI settings and fills in prices for supported common models. Estimates are stored locally and count successful API responses that include token usage. For other models, enter their input/output prices to estimate cost.
 
 Open AI settings, choose **OpenAI-compatible API**, enter an API key, choose a model, and save. The default endpoint is OpenAI's chat-completions endpoint, and the default model is `gpt-4.1-mini`. The key is stored in the browser's local storage; code you send is processed by the API provider you configure.
 

@@ -35,3 +35,5 @@ body.dark-mode{color:#e1e5e2;color-scheme:dark;background:radial-gradient(ellips
 .desktop-controls{display:flex;align-items:center;gap:5px;margin-left:7px;padding-left:9px;border-left:1px solid var(--line);-webkit-app-region:no-drag}.desktop-controls[hidden]{display:none}.desktop-controls button{width:24px;height:24px;padding:0;border:1px solid #777d8255;border-radius:7px;background:transparent;color:#646a70;font:13px/1 "DM Sans",sans-serif;cursor:pointer}.desktop-controls button:hover{background:#777d8219}body.dark-mode .desktop-controls{border-color:#ffffff26}body.dark-mode .desktop-controls button{border-color:#ffffff43;color:#d2d7d3}body.dark-mode .desktop-controls button:hover{background:#ffffff18}
 
 .version-info-content{min-height:210px;max-height:45vh;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;margin:0;padding:13px;border:1px solid #ffffffbd;border-radius:10px;background:#ffffff50;color:#626970;font:10px/1.65 'DM Mono',monospace}body.dark-mode .version-info-content{border-color:#ffffff24;background:#ffffff0a;color:#d0d6d2}
+
+#usageCustomRates[hidden]{display:none}

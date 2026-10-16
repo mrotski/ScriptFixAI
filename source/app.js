@@ -7,10 +7,7 @@
   const DEFAULT_MODEL = 'gpt-4.1-mini';
   const DEFAULT_PUTER_MODEL = 'gpt-5-nano';
   const DEFAULT_LOCAL_MODEL = 'llama3.2';
-  const USAGE_RATE_PRESETS = {
-    'gpt-6-luna': [0.1, 0.5],
-    'gpt-6.1-sol': [2, 10],
-    'gpt-6-astra': [10, 50],
+  const COMMON_API_RATES = {
     'gpt-4.1-mini': [0.4, 1.6],
     'gpt-5-nano': [0.05, 0.4]
   };
@@ -174,10 +171,21 @@
     catch { return {}; }
   }
   function renderUsage() {
+    const active = loadSettings();
+    const puterPanel = $('puterUsagePanel');
+    puterPanel.hidden = active.provider !== 'puter';
+    if (active.provider === 'puter') {
+      $('usageSetup').hidden = true;
+      $('usageDashboard').hidden = true;
+      return;
+    }
     const config = readUsageConfig();
     const setup = $('usageSetup'), dashboard = $('usageDashboard');
-    if (!config || !config.model || !(Number(config.budget) > 0)) {
-      setup.hidden = false; dashboard.hidden = true; return;
+    if (active.provider !== 'cloud') {
+      setup.hidden = true; dashboard.hidden = true; return;
+    }
+    if (!config || !(Number(config.budget) > 0)) {
+      setup.hidden = false; dashboard.hidden = true; prepareUsageSetup(); return;
     }
     setup.hidden = true; dashboard.hidden = false;
     const month = usageMonthKey();
@@ -193,33 +201,53 @@
     $('usageSpent').textContent = `$${spent.toFixed(4)} spent · ${Number(stats.requests) || 0} tracked requests`;
     $('usageRemaining').textContent = `$${left.toFixed(2)} left`;
     $('usageMonth').textContent = `Monthly budget · ${new Date().toLocaleString(undefined, { month: 'long', year: 'numeric' })}`;
-    const active = loadSettings();
-    $('usageTokenNote').textContent = active.provider !== 'cloud'
-      ? 'Usage is recorded only for OpenAI-compatible API calls that return token counts. Local Ollama has no API credit cost; Puter manages its own usage.'
-      : active.model !== config.model
-      ? `Currently selected API model is ${active.model}. Switch it to ${config.model} in AI provider settings for this tracker to count its requests.`
+    $('usageTokenNote').textContent = active.model !== config.model
+      ? `Currently selected API model is ${active.model}. The budget tracker follows the model selected in AI settings.`
       : !(Number(stats.requests) > 0)
       ? 'No tracked requests yet. After a successful API response includes token usage, this estimate will update. It is not your provider’s live account balance.'
       : 'Estimated from token usage returned by the API and the rates you selected. This is not your provider’s live account balance.';
   }
   function prepareUsageSetup() {
     const config = readUsageConfig();
-    const select = $('usageModel');
-    const model = config?.model || '';
-    const option = Array.from(select.options).find(item => item.value === model);
-    if (option) {
-      select.value = model;
-      $('customUsageModelWrap').hidden = true;
-    } else if (model) {
-      select.value = 'custom'; $('customUsageModelWrap').hidden = false; $('customUsageModel').value = model;
-    } else { select.value = ''; $('customUsageModelWrap').hidden = true; }
-    const selected = select.selectedOptions[0];
-    const preset = USAGE_RATE_PRESETS[select.value] || (selected ? [Number(selected.dataset.inputRate) || 0, Number(selected.dataset.outputRate) || 0] : [0, 0]);
+    const model = loadSettings().model || DEFAULT_MODEL;
+    const preset = COMMON_API_RATES[model];
+    $('usageSelectedModel').textContent = model;
     $('usageBudget').value = config?.budget ?? '';
-    $('usageInputRate').value = config?.model === model ? config.inputRate : preset[0];
-    $('usageOutputRate').value = config?.model === model ? config.outputRate : preset[1];
+    $('usageCustomRates').hidden = Boolean(preset);
+    $('usageSetupNote').textContent = preset
+      ? 'The current model and its standard token prices are selected automatically. Enter your monthly budget to start.'
+      : 'This model is not in the built-in price list. Add its input and output prices per million tokens to estimate spend.';
+    $('usageInputRate').value = config?.model === model ? config.inputRate : (preset?.[0] ?? '');
+    $('usageOutputRate').value = config?.model === model ? config.outputRate : (preset?.[1] ?? '');
     $('usageSetup').hidden = false;
     $('usageDashboard').hidden = true;
+  }
+  async function refreshPuterUsage() {
+    const note = $('puterUsageNote');
+    note.textContent = 'Loading your Puter account usage…';
+    try {
+      await puterSdkReady;
+      const getMonthlyUsage = window.puter?.auth?.getMonthlyUsage;
+      if (typeof getMonthlyUsage !== 'function') throw new Error('Puter usage is unavailable. Check your connection and sign in to Puter.');
+      const usage = await getMonthlyUsage.call(window.puter.auth);
+      const allowance = Number(usage?.allowanceInfo?.monthUsageAllowance);
+      const remaining = Number(usage?.allowanceInfo?.remaining);
+      if (!(allowance > 0) || !Number.isFinite(remaining)) throw new Error('Puter did not return a monthly allowance for this account.');
+      const percent = Math.max(0, Math.min(100, remaining / allowance * 100));
+      $('puterUsagePercent').textContent = `${Math.floor(percent)}% allowance left`;
+      $('puterUsageMeterFill').style.width = `${percent}%`;
+      $('puterUsageMeter').setAttribute('aria-valuenow', String(Math.floor(percent)));
+      const dollars = amount => `$${(amount / 100000000).toFixed(2)}`;
+      $('puterUsageSpent').textContent = `${dollars(allowance - remaining)} used this month`;
+      $('puterUsageRemaining').textContent = `${dollars(remaining)} left`;
+      note.textContent = 'Live monthly allowance reported by Puter for your account. It may include Puter services beyond ScriptFix.';
+    } catch (error) {
+      $('puterUsagePercent').textContent = 'Usage unavailable';
+      $('puterUsageMeterFill').style.width = '0%';
+      $('puterUsageSpent').textContent = '';
+      $('puterUsageRemaining').textContent = '';
+      note.textContent = error.message;
+    }
   }
   function recordUsage(responseData, usedModel) {
     const config = readUsageConfig();
@@ -261,7 +289,10 @@
       page.hidden = !active;
       page.classList.toggle('active', active);
     });
-    if (category === 'usage') renderUsage();
+    if (category === 'usage') {
+      renderUsage();
+      if (loadSettings().provider === 'puter') refreshPuterUsage();
+    }
     if (category === 'version') loadVersionInfo();
   }
   function persistChats() {
@@ -398,18 +429,11 @@
     });
   }
   document.querySelectorAll('[data-settings-tab]').forEach(button => button.addEventListener('click', () => setSettingsCategory(button.dataset.settingsTab)));
-  $('usageModel').addEventListener('change', () => {
-    const model = $('usageModel').value;
-    $('customUsageModelWrap').hidden = model !== 'custom';
-    const rates = USAGE_RATE_PRESETS[model] || [0, 0];
-    $('usageInputRate').value = rates[0]; $('usageOutputRate').value = rates[1];
-  });
   $('startUsageTracking').addEventListener('click', () => {
-    const selection = $('usageModel').value;
-    const model = selection === 'custom' ? $('customUsageModel').value.trim() : selection;
+    const model = loadSettings().model || DEFAULT_MODEL;
     const budget = Number($('usageBudget').value);
-    const inputRate = Number($('usageInputRate').value), outputRate = Number($('usageOutputRate').value);
-    if (!model) { showToast('Select a model to track first.'); $('usageModel').focus(); return; }
+    const preset = COMMON_API_RATES[model];
+    const inputRate = preset?.[0] ?? Number($('usageInputRate').value), outputRate = preset?.[1] ?? Number($('usageOutputRate').value);
     if (!(budget > 0) || !Number.isFinite(budget)) { showToast('Enter a monthly budget greater than zero.'); $('usageBudget').focus(); return; }
     if (!Number.isFinite(inputRate) || !Number.isFinite(outputRate) || inputRate < 0 || outputRate < 0 || inputRate + outputRate === 0) { showToast('Enter valid input and output prices for this model.'); return; }
     const previous = readUsageConfig();
@@ -420,19 +444,23 @@
       if (!ledger[currentMonth][model]) ledger[currentMonth][model] = { inputTokens: 0, outputTokens: 0, cost: 0, requests: 0 };
       localStorage.setItem('scriptfix.usageLedger', JSON.stringify(ledger));
     }
-    if ($('provider').value === 'cloud') {
-      localStorage.setItem('scriptfix.model', model);
-      $('model').value = model;
-    }
     renderUsage();
     showToast('Monthly usage tracking is on.');
   });
   $('editUsage').addEventListener('click', prepareUsageSetup);
+  $('refreshPuterUsage').addEventListener('click', refreshPuterUsage);
   $('darkModeToggle').addEventListener('change', () => {
     localStorage.setItem('scriptfix.theme', $('darkModeToggle').checked ? 'dark' : 'light');
     applyTheme();
   });
   $('provider').addEventListener('change', syncProviderSettings);
+  $('model').addEventListener('change', () => {
+    if ($('provider').value === 'cloud') {
+      localStorage.setItem('scriptfix.model', $('model').value.trim() || DEFAULT_MODEL);
+      if (!$('usageSetup').hidden) prepareUsageSetup();
+      else renderUsage();
+    }
+  });
   $('modelSearch').addEventListener('input', refreshModelShelf);
   $('modelCatalog').addEventListener('change', () => { $('model').value = $('modelCatalog').value; });
   $('installOllama').addEventListener('click', async () => {
