@@ -9,6 +9,12 @@ using System.Windows.Forms;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 
+[assembly: AssemblyTitle("ScriptFix AI")]
+[assembly: AssemblyProduct("ScriptFix AI")]
+[assembly: AssemblyVersion("2.0.0.0")]
+[assembly: AssemblyFileVersion("2.0.0.0")]
+[assembly: AssemblyInformationalVersion("2.0.0")]
+
 namespace ScriptFixAI.Desktop
 {
     internal static class Program

@@ -1,12 +1,17 @@
-ScriptFix AI - version 1.3.0
+ScriptFix AI 2.0.0
 
-What does this version bring to SF?
--AI usage tracking.
--Local app improvements.
+What’s new in 2.0
+- Added Talk about code: a dedicated space to ask questions, learn concepts, explain code, and compare technical approaches.
+- Every chat now remembers whether it was created to fix, create, or talk about code.
+- Added tailored quick-start prompts and guidance for each of the three modes.
+- Added friendly model pickers for OpenAI-compatible API and Puter Cloud, so model IDs do not need to be typed.
+- Puter Cloud loads the models available to the signed-in account.
+- Added a subtle light or dark matrix-rain backdrop across the workspace and settings, with blur to keep it out of the way.
 
-Fixed bugs
--Version information is visible again.
--Local app Ollama installer no longer visible.
+Included in 2.0
+- Fix code continues to focus on debugging and improving existing code.
+- Create code continues to focus on building useful, runnable code.
+- Updated the mode picker to make all three ways of working easy to find.
 
 Known issues
--Local app Ollama installation taking a long time.
+- Local Ollama installation or model downloads can take a while, depending on your connection and computer.

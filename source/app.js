@@ -6,6 +6,21 @@
   const DEFAULT_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
   const DEFAULT_MODEL = 'gpt-4.1-mini';
   const DEFAULT_PUTER_MODEL = 'gpt-5-nano';
+  const OPENAI_MODEL_CHOICES = [
+    { id: 'gpt-5.1', label: 'GPT-5.1 — best for coding and complex work' },
+    { id: 'gpt-5', label: 'GPT-5 — capable reasoning and coding' },
+    { id: 'gpt-5-mini', label: 'GPT-5 Mini — fast, capable everyday help' },
+    { id: 'gpt-5-nano', label: 'GPT-5 Nano — fastest, lowest-cost option' },
+    { id: 'gpt-4.1', label: 'GPT-4.1 — strong general-purpose model' },
+    { id: 'gpt-4.1-mini', label: 'GPT-4.1 Mini — fast and affordable' },
+    { id: 'gpt-4.1-nano', label: 'GPT-4.1 Nano — lightweight tasks' }
+  ];
+  const PUTER_FALLBACK_MODEL_CHOICES = [
+    { id: 'gpt-5-nano', label: 'GPT-5 Nano — fast, low-cost help' },
+    { id: 'gpt-5.6-luna', label: 'GPT-5.6 Luna — stronger coding help' },
+    { id: 'claude-sonnet-5', label: 'Claude Sonnet 5 — balanced writing and coding' },
+    { id: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash Lite — quick answers' }
+  ];
   const DEFAULT_LOCAL_MODEL = 'llama3.2';
   const COMMON_API_RATES = {
     'gpt-4.1-mini': [0.4, 1.6],
@@ -33,6 +48,7 @@
     if (bootMessage) bootMessage.textContent = `ScriptFix could not finish opening: ${event.reason?.message || 'a startup request failed'}. Close and reopen the app.`;
   });
   let attachedFile = null, busy = false, activeChat = null, selectedMode = 'fix';
+  const matrixRain = new Map();
   const modePrompts = {
     fix: [
       ['Find a bug', 'Help me find and fix the bug in this code.'],
@@ -43,6 +59,11 @@
       ['Make a Python tool', 'Create a small, complete Python utility for a task I describe. Ask me what it should do.'],
       ['Build a JS feature', 'Help me create a small JavaScript feature. Ask what it should do, then provide working code.'],
       ['Create a web component', 'Help me build a simple HTML and CSS component. Ask what I have in mind.']
+    ],
+    talk: [
+      ['Explain this code', 'Explain what this code does, step by step, in plain language.'],
+      ['Compare approaches', 'Help me compare approaches for solving a programming problem.'],
+      ['Learn a concept', 'Teach me a programming concept with a small, clear example.']
     ]
   };
   let savedChats = [];
@@ -84,6 +105,37 @@
       localModel: localStorage.getItem('scriptfix.localModel') || DEFAULT_LOCAL_MODEL
     };
   }
+  function setModelPickerOptions(choices, selected) {
+    const picker = $('modelPicker');
+    const unique = new Map(choices.map(choice => [choice.id, choice]));
+    if (selected && !unique.has(selected)) unique.set(selected, { id: selected, label: `${selected} — currently selected` });
+    picker.replaceChildren(...[...unique.values()].map(choice => {
+      const option = document.createElement('option'); option.value = choice.id; option.textContent = choice.label; return option;
+    }));
+    picker.value = selected || [...unique.keys()][0] || '';
+  }
+  async function loadPuterModelPicker(selected) {
+    const picker = $('modelPicker');
+    const note = $('modelPickerNote');
+    setModelPickerOptions(PUTER_FALLBACK_MODEL_CHOICES, selected);
+    note.hidden = false; note.textContent = 'Loading the models available through your Puter account…';
+    try {
+      await puterSdkReady;
+      if ($('provider').value !== 'puter') return;
+      const models = await window.puter?.ai?.listModels?.();
+      if (!Array.isArray(models) || !models.length) throw new Error('No models were returned.');
+      const choices = models
+        .filter(model => model?.id)
+        .map(model => ({ id: model.id, label: `${model.name || model.id}${model.provider ? ` — ${model.provider}` : ''}` }))
+        .sort((a, b) => a.label.localeCompare(b.label));
+      setModelPickerOptions(choices, selected);
+      note.textContent = `${choices.length} models are available through Puter. Choose one by its plain-language name.`;
+    } catch {
+      if ($('provider').value !== 'puter') return;
+      note.textContent = 'Showing popular Puter models. The full list will appear when Puter is available.';
+    }
+    if (picker.hidden) note.hidden = true;
+  }
   function syncProviderSettings() {
     const provider = $('provider').value;
     const local = provider === 'local';
@@ -91,6 +143,9 @@
     const localRunner = local && location.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(location.hostname) && location.port !== '11434';
     document.querySelectorAll('.cloud-setting').forEach(element => { element.hidden = local || puter; });
     $('apiKeyLabel').hidden = local || puter;
+    $('model').hidden = !local;
+    $('modelPicker').hidden = local;
+    $('modelPickerNote').hidden = local;
     $('localNote').hidden = !local;
     $('puterNote').hidden = !puter;
     document.querySelector('[data-settings-page="provider"] .dialog-intro').textContent = desktopApp
@@ -100,10 +155,11 @@
       $('model').value = localStorage.getItem('scriptfix.localModel') || DEFAULT_LOCAL_MODEL;
       $('endpoint').value = DEFAULT_LOCAL_ENDPOINT;
     } else if (puter) {
-      $('model').value = localStorage.getItem('scriptfix.puterModel') || DEFAULT_PUTER_MODEL;
+      loadPuterModelPicker(localStorage.getItem('scriptfix.puterModel') || DEFAULT_PUTER_MODEL);
       $('endpoint').value = DEFAULT_ENDPOINT;
     } else {
-      $('model').value = localStorage.getItem('scriptfix.model') || DEFAULT_MODEL;
+      setModelPickerOptions(OPENAI_MODEL_CHOICES, localStorage.getItem('scriptfix.model') || DEFAULT_MODEL);
+      $('modelPickerNote').textContent = 'Choose a model by name. ScriptFix saves the technical model ID for you.';
       $('endpoint').value = localStorage.getItem('scriptfix.endpoint') || DEFAULT_ENDPOINT;
     }
     $('modelShelf').hidden = !localRunner;
@@ -138,17 +194,32 @@
     clearTimeout(showToast.timer); showToast.timer = setTimeout(() => toast.classList.remove('show'), 2400);
   }
   function setChatMode(mode) {
-    selectedMode = mode === 'create' ? 'create' : 'fix';
-    promptBox.placeholder = selectedMode === 'create' ? 'Tell me what you want to do…' : 'Tell me what’s going wrong…';
-    promptBox.setAttribute('aria-label', selectedMode === 'create' ? 'Describe what you want to create with ScriptFix AI' : 'Message ScriptFix AI about your code');
+    selectedMode = ['fix', 'create', 'talk'].includes(mode) ? mode : 'fix';
+    const modeDetails = {
+      fix: {
+        placeholder: 'Tell me what’s going wrong…',
+        label: 'Message ScriptFix AI about a code problem',
+        description: 'Choose a mode, then paste your code or describe what went wrong.'
+      },
+      create: {
+        placeholder: 'Tell me what you want to do…',
+        label: 'Describe what you want to create with ScriptFix AI',
+        description: 'Choose a mode, then describe the small piece of code you want to make.'
+      },
+      talk: {
+        placeholder: 'Ask anything about code…',
+        label: 'Ask ScriptFix AI about code',
+        description: 'Choose a mode, then ask a question or paste code you want to understand.'
+      }
+    }[selectedMode];
+    promptBox.placeholder = modeDetails.placeholder;
+    promptBox.setAttribute('aria-label', modeDetails.label);
     document.querySelectorAll('.mode-choice').forEach(button => {
       const selected = button.dataset.mode === selectedMode;
       button.classList.toggle('selected', selected);
       button.setAttribute('aria-pressed', String(selected));
     });
-    $('welcomeDescription').textContent = selectedMode === 'create'
-      ? 'Choose a mode, then describe the small piece of code you want to make.'
-      : 'Choose a mode, then paste your code or describe what went wrong.';
+    $('welcomeDescription').textContent = modeDetails.description;
     document.querySelectorAll('.suggestion').forEach((button, index) => {
       const [label, prompt] = modePrompts[selectedMode][index];
       button.querySelector('span').textContent = label;
@@ -160,6 +231,50 @@
     document.body.classList.toggle('dark-mode', dark);
     const toggle = $('darkModeToggle');
     if (toggle) toggle.checked = dark;
+  }
+  function resizeMatrixRain(canvas) {
+    const ratio = Math.min(window.devicePixelRatio || 1, 2);
+    const rect = canvas.getBoundingClientRect();
+    const width = Math.max(1, Math.floor(rect.width * ratio));
+    const height = Math.max(1, Math.floor(rect.height * ratio));
+    const state = matrixRain.get(canvas);
+    if (!state || canvas.width !== width || canvas.height !== height) {
+      canvas.width = width; canvas.height = height;
+      matrixRain.set(canvas, { columns: Array.from({ length: Math.ceil(width / (13 * ratio)) }, () => Math.random() * (height / ratio)), ratio });
+    }
+  }
+  function paintMatrixRain() {
+    const dark = document.body.classList.contains('dark-mode');
+    document.querySelectorAll('.matrix-rain').forEach(canvas => {
+      resizeMatrixRain(canvas);
+      const state = matrixRain.get(canvas); if (!state) return;
+      const context = canvas.getContext('2d'); const { ratio, columns } = state;
+      const width = canvas.width / ratio, height = canvas.height / ratio;
+      context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      context.fillStyle = dark ? 'rgba(18, 29, 23, .08)' : 'rgba(235, 244, 238, .07)';
+      context.fillRect(0, 0, width, height);
+      context.font = '12px "DM Mono", monospace';
+      columns.forEach((drop, index) => {
+        const x = index * 13;
+        for (let trail = 5; trail > 0; trail--) {
+          context.fillStyle = dark
+            ? `rgba(121, 255, 163, ${0.08 + (5 - trail) * 0.065})`
+            : `rgba(42, 120, 68, ${0.06 + (5 - trail) * 0.05})`;
+          context.fillText(String.fromCharCode(0x30A0 + Math.floor(Math.random() * 96)), x, drop - trail * 12);
+        }
+        context.fillStyle = dark ? 'rgba(212, 255, 222, .86)' : 'rgba(30, 99, 52, .72)';
+        context.fillText(String.fromCharCode(0x30A0 + Math.floor(Math.random() * 96)), x, drop);
+        const next = drop + 12 + Math.random() * 9;
+        columns[index] = next > height && Math.random() > .975 ? -Math.random() * height * .35 : next;
+      });
+    });
+    matrixRain.frame = window.setTimeout(paintMatrixRain, 92);
+  }
+  function startMatrixRain() {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    window.clearTimeout(matrixRain.frame);
+    document.querySelectorAll('.matrix-rain').forEach(canvas => matrixRain.delete(canvas));
+    paintMatrixRain();
   }
   function readUsageConfig() {
     try { return JSON.parse(localStorage.getItem('scriptfix.usageConfig') || 'null'); }
@@ -412,7 +527,7 @@
     syncProviderSettings();
     dialog.showModal();
     if (!$('modelShelf').hidden) refreshModelShelf();
-    setTimeout(() => (cfg.provider === 'cloud' ? $('apiKey') : $('model')).focus(), 50);
+    setTimeout(() => (cfg.provider === 'cloud' ? $('apiKey') : (cfg.provider === 'local' ? $('model') : $('modelPicker'))).focus(), 50);
   }
   $('settingsButton').addEventListener('click', openSettings);
   $('apiKeyButton').addEventListener('click', openSettings);
@@ -461,6 +576,15 @@
       else renderUsage();
     }
   });
+  $('modelPicker').addEventListener('change', () => {
+    if ($('provider').value === 'cloud') {
+      localStorage.setItem('scriptfix.model', $('modelPicker').value || DEFAULT_MODEL);
+      if (!$('usageSetup').hidden) prepareUsageSetup();
+      else renderUsage();
+    } else if ($('provider').value === 'puter') {
+      localStorage.setItem('scriptfix.puterModel', $('modelPicker').value || DEFAULT_PUTER_MODEL);
+    }
+  });
   $('modelSearch').addEventListener('input', refreshModelShelf);
   $('modelCatalog').addEventListener('change', () => { $('model').value = $('modelCatalog').value; });
   $('installOllama').addEventListener('click', async () => {
@@ -504,9 +628,9 @@
       try { new URL(endpoint); } catch { showToast('Please enter a valid API endpoint.'); return; }
       localStorage.setItem('scriptfix.key', $('apiKey').value.trim());
       localStorage.setItem('scriptfix.endpoint', endpoint);
-      localStorage.setItem('scriptfix.model', $('model').value.trim() || DEFAULT_MODEL);
+      localStorage.setItem('scriptfix.model', $('modelPicker').value || DEFAULT_MODEL);
     } else if (provider === 'puter') {
-      localStorage.setItem('scriptfix.puterModel', $('model').value.trim() || DEFAULT_PUTER_MODEL);
+      localStorage.setItem('scriptfix.puterModel', $('modelPicker').value || DEFAULT_PUTER_MODEL);
     } else {
       localStorage.setItem('scriptfix.localModel', $('model').value.trim() || DEFAULT_LOCAL_MODEL);
     }
@@ -544,6 +668,8 @@
   $('dismissDesktopPromo').addEventListener('click', () => { localStorage.setItem('scriptfix.desktopPromoDismissed', '1'); updateDesktopPromo(); });
   setChatMode('fix');
   applyTheme();
+  startMatrixRain();
+  window.addEventListener('resize', startMatrixRain);
   if (desktopApp) beginDesktopSetup();
   const savedActiveId = localStorage.getItem('scriptfix.activeChat');
   if (savedActiveId && savedChats.some(chat => chat.id === savedActiveId)) openChat(savedActiveId);
@@ -601,10 +727,13 @@
     if (cfg.provider === 'cloud' && !cfg.key) { openSettings(); showToast('Add your API key to get started.'); return; }
     const fileForRequest = attachedFile;
     const displayText = [userText, fileForRequest ? `📎 ${fileForRequest.name}` : ''].filter(Boolean).join('\n');
-    const system = activeChat?.mode === 'create'
+    const chatMode = activeChat?.mode || selectedMode;
+    const system = chatMode === 'create'
       ? 'You are ScriptFix AI in Create Code mode, a careful and friendly programming assistant. Help the user create small, useful pieces of code from their ideas. If an essential requirement is unclear, ask one concise question; otherwise make reasonable assumptions and state them. Provide complete, runnable code in a fenced code block with the correct language label, include brief usage instructions, and avoid unnecessary dependencies. Explain important choices and never claim to have executed code unless you actually did.'
+      : chatMode === 'talk'
+      ? 'You are ScriptFix AI in Talk About Code mode, a clear, curious, and friendly programming conversation partner. Help users understand code, explore concepts, compare technical approaches, and think through tradeoffs. Match the user’s experience level, explain terms plainly, and use short examples when they help. Do not provide a full replacement script unless the user asks for one. If code has a likely bug or risk, mention it clearly. Never claim to have executed code unless you actually did.'
       : 'You are ScriptFix AI in Fix Code mode, a careful and friendly programming assistant. Help users debug, explain, and improve code. When suggesting a corrected script, include a complete runnable version in a fenced code block with the language label. Explain the important changes briefly. Preserve the user’s intent. Call out assumptions and potentially destructive behavior. Never claim to have executed code unless you actually did.';
-    let userContent = userText || 'Please inspect this script for bugs and suggest a corrected version.';
+    let userContent = userText || (chatMode === 'talk' ? 'Please explain this code in plain language.' : 'Please inspect this script for bugs and suggest a corrected version.');
     if (fileForRequest) userContent += `\n\nAttached file: ${fileForRequest.name}\n\n\`\`\`${fileForRequest.name.split('.').pop()}\n${fileForRequest.text}\n\`\`\``;
     addMessage('user', displayText, false, false, userContent);
     promptBox.value = ''; promptBox.style.height = 'auto'; attachedFile = null; $('fileLabel').textContent = ''; $('fileInput').value = '';

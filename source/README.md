@@ -14,7 +14,7 @@ Double-click `Open in Browser.cmd` to open the web version locally. It offers cl
 
 The Windows app runs local models through Ollama. AI settings includes a searchable starter shelf to download and select coding models. You can also install Ollama separately by double-clicking `source\Install Ollama.cmd`. The helper downloads the official installer, verifies its signature belongs to Ollama Inc., and installs without administrator access. The local model runs on your computer and does not need API keys or credits.
 
-New chats offer **Fix code** and **Create code** modes. Create Code focuses the assistant on producing small, runnable pieces of code; each saved chat remembers its mode.
+Version 2.0 adds three chat modes: **Fix code** for debugging and improving existing code, **Create code** for building small, runnable pieces of code, and **Talk about code** for questions, explanations, learning concepts, and comparing approaches. Each saved chat remembers its mode.
 
 Recent chats are listed in the sidebar and stored in this browser on this computer. Chats include their conversation context so they can be reopened and continued. Use **Clear** above the list to remove the saved history.
 
@@ -27,6 +27,8 @@ Choose **Puter Cloud — no API key** on a hosted website or localhost address. 
 Settings are grouped into **AI provider**, **Appearance**, **Usage**, **Info of this version**, and **Privacy & data** categories. Toggle dark mode in Appearance; the choice is saved in this browser.
 
 The **Usage** category shows Puter’s live monthly account allowance when Puter Cloud is selected. For an OpenAI-compatible API, enter a monthly budget; ScriptFix follows the model selected in AI settings and fills in prices for supported common models. Estimates are stored locally and count successful API responses that include token usage. For other models, enter their input/output prices to estimate cost.
+
+In AI settings, Puter Cloud and OpenAI-compatible API now offer model pickers with friendly names. Puter loads the models currently available to the signed-in account; ScriptFix stores the underlying model ID automatically.
 
 Open AI settings, choose **OpenAI-compatible API**, enter an API key, choose a model, and save. The default endpoint is OpenAI's chat-completions endpoint, and the default model is `gpt-4.1-mini`. The key is stored in the browser's local storage; code you send is processed by the API provider you configure.
 
