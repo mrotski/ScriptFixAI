@@ -2,6 +2,8 @@
 
 A small, editable coding assistant with a frosted-glass chat interface. ScriptFix AI 2.0 supports fixing code, creating code, and talking about code.
 
+Version 2.1 adds live replies, multi-file project attachments, AI code-change review, safe JavaScript snippet runs, friendly model guidance, prompt presets, and saved-chat search/export.
+
 ## Run the app
 
 Double-click `ScriptFix AI.exe` to use the local Ollama model and saved chat history. Keep `index.html` and the `source` folder beside it. The launcher opens a borderless Microsoft Edge app window with custom minimize, maximize, close, and drag controls in the page header.

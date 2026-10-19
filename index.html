@@ -30,7 +30,8 @@
       <aside class="sidebar">
         <div class="side-eyebrow">YOUR WORKSPACE</div>
         <button id="newChat" class="new-chat"><span>＋</span> New conversation <kbd>⌘ K</kbd></button>
-        <div class="history-heading"><span class="side-label">RECENT CHATS</span><button id="clearHistory" class="clear-history" title="Clear saved chats">Clear</button></div>
+        <div class="history-heading"><span class="side-label">RECENT CHATS</span><span><button id="exportChats" class="clear-history" title="Export saved chats">Export</button><button id="clearHistory" class="clear-history" title="Clear saved chats">Clear</button></span></div>
+        <input id="chatSearch" class="chat-search" type="search" placeholder="Search chats…" aria-label="Search saved chats" />
         <div id="chatHistory" class="chat-history" aria-label="Saved chats"></div>
         <div class="side-label">GET STARTED</div>
         <div class="hint-card"><div class="hint-icon">↥</div><div><strong>Drop in a script</strong><p>or click below to pick a file</p></div></div>
@@ -63,11 +64,11 @@
         <div class="composer-wrap">
           <div class="composer" id="composer">
             <textarea id="prompt" rows="1" placeholder="Tell me what’s going wrong…" aria-label="Message ScriptFix AI"></textarea>
-            <div class="composer-bottom"><div class="composer-tools"><button class="tool-button" id="attachButton"><span class="attach-icon">＋</span><span>Attach script</span></button><span class="tool-divider"></span><span id="fileLabel" class="file-label"></span></div><div class="send-side"><span class="send-hint">ENTER TO SEND</span><button id="sendButton" class="send-button" aria-label="Send message"><span>↑</span></button></div></div>
+            <div class="composer-bottom"><div class="composer-tools"><button class="tool-button" id="attachButton"><span class="attach-icon">＋</span><span>Add files</span></button><span class="tool-divider"></span><span id="fileLabel" class="file-label"></span></div><div class="send-side"><select id="promptPreset" class="prompt-preset" aria-label="Prompt preset"><option value="">Prompt preset</option><option value="Explain this code simply, using plain language and a small example if helpful.">Explain simply</option><option value="Review this code for correctness, security, performance, and maintainability.">Production review</option><option value="Review this code for security risks and suggest safer alternatives.">Security review</option><option value="Help me write tests for this code. Explain what each test covers.">Write tests</option></select><span class="send-hint">ENTER TO SEND</span><button id="sendButton" class="send-button" aria-label="Send message"><span>↑</span></button></div></div>
           </div>
           <div class="disclaimer"><span class="sparkle">✳</span> AI can make mistakes. Give your code a once-over before shipping.</div>
         </div>
-        <input type="file" id="fileInput" accept=".js,.jsx,.ts,.tsx,.py,.cpp,.c,.h,.hpp,.cs,.java,.go,.rs,.php,.rb,.swift,.kt,.sh,.ps1,.html,.css,.json,.sql,.txt,.lua,.r,.yaml,.yml,.toml,.xml,.md" hidden />
+        <input type="file" id="fileInput" multiple accept=".js,.jsx,.ts,.tsx,.py,.cpp,.c,.h,.hpp,.cs,.java,.go,.rs,.php,.rb,.swift,.kt,.sh,.ps1,.html,.css,.json,.sql,.txt,.lua,.r,.yaml,.yml,.toml,.xml,.md" hidden />
       </section>
     </section>
   </main>
@@ -99,7 +100,7 @@
             <p class="dialog-intro">Choose where your code is processed. Local Ollama runs on this computer and needs no API key or credits.</p>
             <label for="provider">AI provider</label><select id="provider" class="provider-select"><option value="local">Local Ollama — on this computer</option><option value="puter">Puter Cloud — no API key</option><option value="cloud">OpenAI-compatible API</option></select>
             <label for="apiKey" id="apiKeyLabel">API key</label><input id="apiKey" class="cloud-setting" type="password" placeholder="sk-…" autocomplete="off" />
-            <div class="field-row"><div><label for="model">Model</label><input id="model" type="text" placeholder="llama3.2" /><select id="modelPicker" class="provider-select" aria-label="Choose an AI model" hidden></select><p id="modelPickerNote" class="model-picker-note" hidden></p></div><div class="cloud-setting"><label for="endpoint">API endpoint</label><input id="endpoint" type="url" placeholder="https://api.openai.com/v1/chat/completions" /></div></div>
+            <div class="field-row"><div><label for="model">Model</label><input id="model" type="text" placeholder="llama3.2" /><select id="modelPicker" class="provider-select" aria-label="Choose an AI model" hidden></select><p id="modelPickerNote" class="model-picker-note" hidden></p><div id="modelDetails" class="model-details" hidden></div></div><div class="cloud-setting"><label for="endpoint">API endpoint</label><input id="endpoint" type="url" placeholder="https://api.openai.com/v1/chat/completions" /></div></div>
             <div id="localNote" class="dialog-note">Use the model shelf below to find and download a local coding model. Ollama is needed as the model runner; ScriptFix can start it for you.</div>
             <div id="modelShelf" class="model-shelf" hidden>
               <label for="modelSearch">Find a ready-to-use model</label><input id="modelSearch" type="search" placeholder="Search coding models…" />

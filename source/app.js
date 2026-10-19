@@ -21,6 +21,15 @@
     { id: 'claude-sonnet-5', label: 'Claude Sonnet 5 — balanced writing and coding' },
     { id: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash Lite — quick answers' }
   ];
+  const MODEL_DETAILS = {
+    'gpt-5.1': 'Best quality · Strong coding and complex reasoning · Higher usage',
+    'gpt-5': 'High quality · Capable coding and reasoning · Moderate usage',
+    'gpt-5-mini': 'Balanced · Fast everyday coding help · Lower usage',
+    'gpt-5-nano': 'Fastest · Short focused tasks · Lowest usage',
+    'gpt-4.1': 'Strong general-purpose work · Moderate speed',
+    'gpt-4.1-mini': 'Fast and affordable · Great default for many tasks',
+    'gpt-4.1-nano': 'Very fast · Best for smaller, simple tasks'
+  };
   const DEFAULT_LOCAL_MODEL = 'llama3.2';
   const COMMON_API_RATES = {
     'gpt-4.1-mini': [0.4, 1.6],
@@ -47,7 +56,7 @@
     if (bootScreen) bootScreen.hidden = false;
     if (bootMessage) bootMessage.textContent = `ScriptFix could not finish opening: ${event.reason?.message || 'a startup request failed'}. Close and reopen the app.`;
   });
-  let attachedFile = null, busy = false, activeChat = null, selectedMode = 'fix';
+  let attachedFiles = [], busy = false, activeChat = null, selectedMode = 'fix';
   const matrixRain = new Map();
   const modePrompts = {
     fix: [
@@ -113,6 +122,15 @@
       const option = document.createElement('option'); option.value = choice.id; option.textContent = choice.label; return option;
     }));
     picker.value = selected || [...unique.keys()][0] || '';
+    renderModelDetails();
+  }
+  function renderModelDetails() {
+    const details = $('modelDetails'); const provider = $('provider')?.value; const model = $('modelPicker').value;
+    if (provider === 'local') { details.hidden = true; return; }
+    details.hidden = false;
+    details.textContent = MODEL_DETAILS[model] || (provider === 'puter'
+      ? 'Live Puter model · Availability and pricing are shown in your Puter account.'
+      : 'Custom API model · Check your provider for capability and pricing details.');
   }
   async function loadPuterModelPicker(selected) {
     const picker = $('modelPicker');
@@ -146,6 +164,7 @@
     $('model').hidden = !local;
     $('modelPicker').hidden = local;
     $('modelPickerNote').hidden = local;
+    $('modelDetails').hidden = local;
     $('localNote').hidden = !local;
     $('puterNote').hidden = !puter;
     document.querySelector('[data-settings-page="provider"] .dialog-intro').textContent = desktopApp
@@ -160,6 +179,7 @@
     } else {
       setModelPickerOptions(OPENAI_MODEL_CHOICES, localStorage.getItem('scriptfix.model') || DEFAULT_MODEL);
       $('modelPickerNote').textContent = 'Choose a model by name. ScriptFix saves the technical model ID for you.';
+      renderModelDetails();
       $('endpoint').value = localStorage.getItem('scriptfix.endpoint') || DEFAULT_ENDPOINT;
     }
     $('modelShelf').hidden = !localRunner;
@@ -431,8 +451,9 @@
   }
   function renderChatHistory() {
     const list = $('chatHistory'); list.replaceChildren();
+    const query = $('chatSearch').value.trim().toLowerCase();
     const ordered = [...savedChats].sort((a, b) => b.updatedAt - a.updatedAt);
-    ordered.forEach(chat => {
+    ordered.filter(chat => !query || `${chat.title} ${(chat.messages || []).map(message => message.display || message.content).join(' ')}`.toLowerCase().includes(query)).forEach(chat => {
       const row = document.createElement('div'); row.className = `history-row${activeChat && activeChat.id === chat.id ? ' active' : ''}`;
       const open = document.createElement('button'); open.className = 'history-open'; open.title = chat.title; open.textContent = chat.title || 'New conversation';
       open.addEventListener('click', () => openChat(chat.id));
@@ -513,12 +534,67 @@
         const title = document.createElement('span'); title.textContent = lang;
         const copy = document.createElement('button'); copy.className = 'copy-code'; copy.textContent = 'Copy code';
         copy.addEventListener('click', async () => { try { await navigator.clipboard.writeText(code); copy.textContent = 'Copied!'; setTimeout(() => copy.textContent = 'Copy code', 1300); } catch { showToast('Could not access clipboard.'); } });
-        header.append(title, copy); const pre = document.createElement('pre'); pre.className = 'code-body'; pre.textContent = code;
+        header.append(title, copy);
+        if (/^(js|javascript|jsx)$/i.test(lang)) {
+          const run = document.createElement('button'); run.className = 'copy-code'; run.textContent = 'Run safely';
+          run.addEventListener('click', () => runJavaScriptSafely(code, run)); header.append(run);
+        }
+        const source = latestAttachedCode();
+        if (source) {
+          const review = document.createElement('button'); review.className = 'copy-code'; review.textContent = 'Review changes';
+          review.addEventListener('click', () => showDiff(wrap, source, code)); header.append(review);
+        }
+        const pre = document.createElement('pre'); pre.className = 'code-body'; pre.textContent = code;
         wrap.append(header, pre); container.append(wrap);
       }
     }
     if (!container.childElementCount) { const p = document.createElement('p'); p.textContent = content; container.append(p); }
     bubble.append(container);
+  }
+  function latestAttachedCode() {
+    const userMessage = [...(activeChat?.messages || [])].reverse().find(message => message.role === 'user' && /```/.test(message.content));
+    return userMessage?.content.match(/```[^\n`]*\n([\s\S]*?)```/)?.[1] || '';
+  }
+  function showDiff(wrap, before, after) {
+    wrap.querySelector('.diff-view')?.remove();
+    const oldLines = before.split('\n'), newLines = after.split('\n');
+    const count = Math.max(oldLines.length, newLines.length); const diff = document.createElement('pre'); diff.className = 'diff-view';
+    diff.textContent = Array.from({ length: count }, (_, index) => oldLines[index] === newLines[index]
+      ? `  ${oldLines[index] || ''}`
+      : `${oldLines[index] === undefined ? '' : `- ${oldLines[index]}\n`}${newLines[index] === undefined ? '' : `+ ${newLines[index]}`}`).filter(Boolean).join('\n');
+    wrap.append(diff);
+  }
+  function runJavaScriptSafely(code, button) {
+    const frame = document.createElement('iframe'); frame.sandbox = 'allow-scripts'; frame.className = 'safe-runner';
+    const escaped = code.replace(/<\/script/gi, '<\\/script');
+    frame.srcdoc = `<!doctype html><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'"><script>const send=(type,value)=>parent.postMessage({scriptfixRunner:true,type,value:String(value)},'*');console.log=(...items)=>send('log',items.join(' '));window.onerror=(message)=>send('error',message);try{${escaped}}catch(error){send('error',error.stack||error.message)}<\/script>`;
+    const output = document.createElement('pre'); output.className = 'run-output'; output.textContent = 'Running in an isolated browser sandbox…';
+    const listener = event => { if (!event.data?.scriptfixRunner) return; output.textContent += `\n${event.data.type === 'error' ? 'Error: ' : ''}${event.data.value}`; };
+    window.addEventListener('message', listener); setTimeout(() => window.removeEventListener('message', listener), 10000);
+    button.closest('.code-wrap').append(frame, output);
+  }
+  async function readStream(response, onChunk) {
+    const reader = response.body?.getReader(); if (!reader) return '';
+    const decoder = new TextDecoder(); let buffer = '', full = '';
+    while (true) {
+      const { value, done } = await reader.read(); if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split(/\r?\n/); buffer = lines.pop() || '';
+      for (const line of lines) {
+        const payload = line.replace(/^data:\s*/, '').trim(); if (!payload || payload === '[DONE]') continue;
+        try { const data = JSON.parse(payload); const text = data.choices?.[0]?.delta?.content || data.message?.content || ''; if (text) { full += text; onChunk(full); } } catch { /* Ignore non-message stream lines. */ }
+      }
+    }
+    return full;
+  }
+  async function readPuterStream(result, onChunk) {
+    if (!result?.[Symbol.asyncIterator]) return '';
+    let full = '';
+    for await (const part of result) {
+      const text = part?.text || part?.message?.content || part?.choices?.[0]?.delta?.content || '';
+      if (text) { full += text; onChunk(full); }
+    }
+    return full;
   }
   function openSettings() {
     const cfg = loadSettings(); $('apiKey').value = cfg.key; $('provider').value = cfg.provider;
@@ -577,6 +653,7 @@
     }
   });
   $('modelPicker').addEventListener('change', () => {
+    renderModelDetails();
     if ($('provider').value === 'cloud') {
       localStorage.setItem('scriptfix.model', $('modelPicker').value || DEFAULT_MODEL);
       if (!$('usageSetup').hidden) prepareUsageSetup();
@@ -642,22 +719,32 @@
   $('newChat').addEventListener('click', () => {
     activeChat = null; localStorage.removeItem('scriptfix.activeChat');
     setChatMode('fix');
-    messages.replaceChildren(); $('welcome').hidden = false; promptBox.value = ''; attachedFile = null; $('fileLabel').textContent = ''; renderChatHistory(); promptBox.focus();
+    messages.replaceChildren(); $('welcome').hidden = false; promptBox.value = ''; attachedFiles = []; $('fileLabel').textContent = ''; renderChatHistory(); promptBox.focus();
   });
   $('clearHistory').addEventListener('click', () => {
     if (!savedChats.length || !confirm('Delete all saved chats from this browser?')) return;
     savedChats = []; activeChat = null; localStorage.removeItem('scriptfix.chats'); localStorage.removeItem('scriptfix.activeChat');
     messages.replaceChildren(); $('welcome').hidden = false; setChatMode('fix'); renderChatHistory(); showToast('Saved chats cleared.');
   });
+  $('chatSearch').addEventListener('input', renderChatHistory);
+  $('exportChats').addEventListener('click', () => {
+    const markdown = savedChats.map(chat => [`# ${chat.title || 'Conversation'}`, ...(chat.messages || []).map(message => `## ${message.role === 'user' ? 'You' : 'ScriptFix AI'}\n\n${message.display || message.content}`)].join('\n\n')).join('\n\n---\n\n');
+    const blob = new Blob([markdown || '# ScriptFix AI conversations\n\nNo saved chats.'], { type: 'text/markdown' });
+    const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'scriptfix-ai-chats.md'; link.click(); URL.revokeObjectURL(link.href);
+  });
   $('attachButton').addEventListener('click', () => $('fileInput').click());
   $('uploadSide').addEventListener('click', () => $('fileInput').click());
   $('fileInput').addEventListener('change', async (event) => {
-    const file = event.target.files[0]; if (!file) return;
-    const maxBytes = 500 * 1024;
-    if (file.size > maxBytes) { showToast('That file is over 500 KB. Please choose a smaller script.'); event.target.value = ''; return; }
-    attachedFile = { name: file.name, text: await file.text() };
-    $('fileLabel').textContent = `↳ ${file.name}`;
-    showToast(`${file.name} attached.`);
+    const files = [...event.target.files]; if (!files.length) return;
+    const maxBytes = 500 * 1024, maxFiles = 8;
+    if (files.length > maxFiles || files.some(file => file.size > maxBytes)) { showToast(`Attach up to ${maxFiles} files, each under 500 KB.`); event.target.value = ''; return; }
+    attachedFiles = await Promise.all(files.map(async file => ({ name: file.name, text: await file.text() })));
+    $('fileLabel').textContent = `↳ ${attachedFiles.length === 1 ? attachedFiles[0].name : `${attachedFiles.length} project files`}`;
+    showToast(`${attachedFiles.length} file${attachedFiles.length === 1 ? '' : 's'} attached.`);
+  });
+  $('promptPreset').addEventListener('change', event => {
+    if (!event.target.value) return;
+    promptBox.value = event.target.value; promptBox.dispatchEvent(new Event('input')); promptBox.focus(); event.target.value = '';
   });
   document.querySelectorAll('.suggestion').forEach(button => button.addEventListener('click', () => { promptBox.value = button.dataset.prompt; promptBox.focus(); promptBox.dispatchEvent(new Event('input')); }));
   promptBox.addEventListener('input', () => { promptBox.style.height = 'auto'; promptBox.style.height = `${Math.min(promptBox.scrollHeight, 125)}px`; });
@@ -721,12 +808,12 @@
   async function send() {
     if (busy) return;
     const userText = promptBox.value.trim();
-    if (!userText && !attachedFile) { showToast('Write a message or attach a script first.'); promptBox.focus(); return; }
+    if (!userText && !attachedFiles.length) { showToast('Write a message or attach one or more files first.'); promptBox.focus(); return; }
     const cfg = loadSettings();
     if (localFileApp && !desktopApp) { showToast('Open ScriptFix AI from a local web server or hosted website to connect to an AI service.'); return; }
     if (cfg.provider === 'cloud' && !cfg.key) { openSettings(); showToast('Add your API key to get started.'); return; }
-    const fileForRequest = attachedFile;
-    const displayText = [userText, fileForRequest ? `📎 ${fileForRequest.name}` : ''].filter(Boolean).join('\n');
+    const filesForRequest = attachedFiles;
+    const displayText = [userText, ...filesForRequest.map(file => `📎 ${file.name}`)].filter(Boolean).join('\n');
     const chatMode = activeChat?.mode || selectedMode;
     const system = chatMode === 'create'
       ? 'You are ScriptFix AI in Create Code mode, a careful and friendly programming assistant. Help the user create small, useful pieces of code from their ideas. If an essential requirement is unclear, ask one concise question; otherwise make reasonable assumptions and state them. Provide complete, runnable code in a fenced code block with the correct language label, include brief usage instructions, and avoid unnecessary dependencies. Explain important choices and never claim to have executed code unless you actually did.'
@@ -734,9 +821,9 @@
       ? 'You are ScriptFix AI in Talk About Code mode, a clear, curious, and friendly programming conversation partner. Help users understand code, explore concepts, compare technical approaches, and think through tradeoffs. Match the user’s experience level, explain terms plainly, and use short examples when they help. Do not provide a full replacement script unless the user asks for one. If code has a likely bug or risk, mention it clearly. Never claim to have executed code unless you actually did.'
       : 'You are ScriptFix AI in Fix Code mode, a careful and friendly programming assistant. Help users debug, explain, and improve code. When suggesting a corrected script, include a complete runnable version in a fenced code block with the language label. Explain the important changes briefly. Preserve the user’s intent. Call out assumptions and potentially destructive behavior. Never claim to have executed code unless you actually did.';
     let userContent = userText || (chatMode === 'talk' ? 'Please explain this code in plain language.' : 'Please inspect this script for bugs and suggest a corrected version.');
-    if (fileForRequest) userContent += `\n\nAttached file: ${fileForRequest.name}\n\n\`\`\`${fileForRequest.name.split('.').pop()}\n${fileForRequest.text}\n\`\`\``;
+    if (filesForRequest.length) userContent += filesForRequest.map(file => `\n\nProject file: ${file.name}\n\n\`\`\`${file.name.split('.').pop()}\n${file.text}\n\`\`\``).join('');
     addMessage('user', displayText, false, false, userContent);
-    promptBox.value = ''; promptBox.style.height = 'auto'; attachedFile = null; $('fileLabel').textContent = ''; $('fileInput').value = '';
+    promptBox.value = ''; promptBox.style.height = 'auto'; attachedFiles = []; $('fileLabel').textContent = ''; $('fileInput').value = '';
     busy = true; $('sendButton').disabled = true;
     const typingRow = addMessage('assistant', '', true);
     try {
@@ -746,10 +833,13 @@
         const result = await window.puter.ai.chat([
           { role: 'system', content: system },
           ...activeChat.messages.map(message => ({ role: message.role, content: message.content }))
-        ], { model: cfg.puterModel || DEFAULT_PUTER_MODEL, normalize: true });
-        const reply = result?.message?.content;
+        ], { model: cfg.puterModel || DEFAULT_PUTER_MODEL, normalize: true, stream: true });
+        const bubble = typingRow.querySelector('.bubble'); bubble.textContent = '';
+        const streamedReply = await readPuterStream(result, text => { bubble.textContent = text; scrollToBottom(); });
+        const reply = streamedReply || result?.message?.content;
         if (!reply) throw new Error('Puter returned an empty response. Try again or choose another model in AI settings.');
-        typingRow.remove(); addMessage('assistant', reply);
+        renderAssistant(bubble, reply);
+        const chat = beginChat(); chat.messages.push({ role: 'assistant', content: reply, display: reply }); persistChats();
         return;
       }
       const local = cfg.provider === 'local';
@@ -760,10 +850,10 @@
       const response = await fetch(endpoint, {
         method: 'POST', headers,
         ...(local && desktopApp && !localRunner ? { targetAddressSpace: 'loopback' } : {}),
-        body: JSON.stringify({ model: local ? cfg.localModel : cfg.model, messages: [{ role: 'system', content: system }, ...activeChat.messages.map(message => ({ role: message.role, content: message.content }))], temperature: 0.2 })
+        body: JSON.stringify({ model: local ? cfg.localModel : cfg.model, messages: [{ role: 'system', content: system }, ...activeChat.messages.map(message => ({ role: message.role, content: message.content }))], temperature: 0.2, stream: true })
       });
-      const data = await response.json().catch(() => ({}));
       if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
         const apiError = data.error || {};
         const apiMessage = apiError.message || `HTTP ${response.status}`;
         const apiCode = apiError.code || apiError.type || '';
@@ -775,10 +865,11 @@
         }
         throw detail;
       }
-      const reply = data.choices?.[0]?.message?.content;
-      if (!reply) throw new Error('The API returned an empty response. Check that your selected model supports chat completions.');
-      if (!local) recordUsage(data, cfg.model);
-      typingRow.remove(); addMessage('assistant', reply);
+      const bubble = typingRow.querySelector('.bubble'); bubble.textContent = '';
+      const reply = await readStream(response, text => { bubble.textContent = text; scrollToBottom(); });
+      if (!reply) throw new Error('The API returned an empty response. Check that your selected model supports streaming chat completions.');
+      renderAssistant(bubble, reply);
+      const chat = beginChat(); chat.messages.push({ role: 'assistant', content: reply, display: reply }); persistChats();
     } catch (error) {
       typingRow.remove();
       if (error.isCreditBalanceError) {

@@ -1,4 +1,11 @@
-ScriptFix AI 2.0.0
+ScriptFix AI 2.1.0
+
+What’s new in 2.1
+- Live streaming responses for OpenAI-compatible, local Ollama, and supported Puter models.
+- Attach a small project workspace of up to eight code files to a chat.
+- Review AI-generated code against attached source, and run JavaScript snippets in an isolated browser sandbox.
+- Search and export saved chats, and use prompt presets for common reviews and explanations.
+- Added model capability guidance in AI settings.
 
 What’s new in 2.0
 - Added Talk about code: a dedicated space to ask questions, learn concepts, explain code, and compare technical approaches.

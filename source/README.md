@@ -16,6 +16,8 @@ The Windows app runs local models through Ollama. AI settings includes a searcha
 
 Version 2.0 adds three chat modes: **Fix code** for debugging and improving existing code, **Create code** for building small, runnable pieces of code, and **Talk about code** for questions, explanations, learning concepts, and comparing approaches. Each saved chat remembers its mode.
 
+Version 2.1 adds live replies, project workspaces (up to eight attached files), code-change review, safe JavaScript snippet runs, model guidance, prompt presets, and searchable/exportable chat history.
+
 Recent chats are listed in the sidebar and stored in this browser on this computer. Chats include their conversation context so they can be reopened and continued. Use **Clear** above the list to remove the saved history.
 
 ## Use keyless cloud AI
