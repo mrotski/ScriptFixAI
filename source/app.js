@@ -57,7 +57,6 @@
     if (bootMessage) bootMessage.textContent = `ScriptFix could not finish opening: ${event.reason?.message || 'a startup request failed'}. Close and reopen the app.`;
   });
   let attachedFiles = [], busy = false, activeChat = null, selectedMode = 'fix';
-  const matrixRain = new Map();
   const modePrompts = {
     fix: [
       ['Find a bug', 'Help me find and fix the bug in this code.'],
@@ -251,50 +250,6 @@
     document.body.classList.toggle('dark-mode', dark);
     const toggle = $('darkModeToggle');
     if (toggle) toggle.checked = dark;
-  }
-  function resizeMatrixRain(canvas) {
-    const ratio = Math.min(window.devicePixelRatio || 1, 2);
-    const rect = canvas.getBoundingClientRect();
-    const width = Math.max(1, Math.floor(rect.width * ratio));
-    const height = Math.max(1, Math.floor(rect.height * ratio));
-    const state = matrixRain.get(canvas);
-    if (!state || canvas.width !== width || canvas.height !== height) {
-      canvas.width = width; canvas.height = height;
-      matrixRain.set(canvas, { columns: Array.from({ length: Math.ceil(width / (13 * ratio)) }, () => Math.random() * (height / ratio)), ratio });
-    }
-  }
-  function paintMatrixRain() {
-    const dark = document.body.classList.contains('dark-mode');
-    document.querySelectorAll('.matrix-rain').forEach(canvas => {
-      resizeMatrixRain(canvas);
-      const state = matrixRain.get(canvas); if (!state) return;
-      const context = canvas.getContext('2d'); const { ratio, columns } = state;
-      const width = canvas.width / ratio, height = canvas.height / ratio;
-      context.setTransform(ratio, 0, 0, ratio, 0, 0);
-      context.fillStyle = dark ? 'rgba(18, 29, 23, .08)' : 'rgba(235, 244, 238, .07)';
-      context.fillRect(0, 0, width, height);
-      context.font = '12px "DM Mono", monospace';
-      columns.forEach((drop, index) => {
-        const x = index * 13;
-        for (let trail = 5; trail > 0; trail--) {
-          context.fillStyle = dark
-            ? `rgba(121, 255, 163, ${0.08 + (5 - trail) * 0.065})`
-            : `rgba(42, 120, 68, ${0.06 + (5 - trail) * 0.05})`;
-          context.fillText(String.fromCharCode(0x30A0 + Math.floor(Math.random() * 96)), x, drop - trail * 12);
-        }
-        context.fillStyle = dark ? 'rgba(212, 255, 222, .86)' : 'rgba(30, 99, 52, .72)';
-        context.fillText(String.fromCharCode(0x30A0 + Math.floor(Math.random() * 96)), x, drop);
-        const next = drop + 12 + Math.random() * 9;
-        columns[index] = next > height && Math.random() > .975 ? -Math.random() * height * .35 : next;
-      });
-    });
-    matrixRain.frame = window.setTimeout(paintMatrixRain, 92);
-  }
-  function startMatrixRain() {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    window.clearTimeout(matrixRain.frame);
-    document.querySelectorAll('.matrix-rain').forEach(canvas => matrixRain.delete(canvas));
-    paintMatrixRain();
   }
   function readUsageConfig() {
     try { return JSON.parse(localStorage.getItem('scriptfix.usageConfig') || 'null'); }
@@ -755,8 +710,6 @@
   $('dismissDesktopPromo').addEventListener('click', () => { localStorage.setItem('scriptfix.desktopPromoDismissed', '1'); updateDesktopPromo(); });
   setChatMode('fix');
   applyTheme();
-  startMatrixRain();
-  window.addEventListener('resize', startMatrixRain);
   if (desktopApp) beginDesktopSetup();
   const savedActiveId = localStorage.getItem('scriptfix.activeChat');
   if (savedActiveId && savedChats.some(chat => chat.id === savedActiveId)) openChat(savedActiveId);
@@ -886,4 +839,3 @@
     } finally { busy = false; $('sendButton').disabled = false; promptBox.focus(); }
   }
 })();
-

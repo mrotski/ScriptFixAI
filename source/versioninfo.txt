@@ -1,4 +1,7 @@
-ScriptFix AI 2.1.0
+ScriptFix AI 2.1.1
+
+What’s new in 2.1.1
+- Removed the matrix-rain animation from the main menu and settings backgrounds.
 
 What’s new in 2.1
 - Live streaming responses for OpenAI-compatible, local Ollama, and supported Puter models.
