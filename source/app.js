@@ -48,13 +48,13 @@
     const bootScreen = $('appBootScreen');
     const bootMessage = $('appBootMessage');
     if (bootScreen) bootScreen.hidden = false;
-    if (bootMessage) bootMessage.textContent = `ScriptFix could not finish opening: ${event.message || 'an app script failed to load'}. Close and reopen the app.`;
+    if (bootMessage) bootMessage.textContent = `ScriptFix has crashed with message: ${event.message || 'an app script failed to load'}. Refreshing the website should help!.`;
   });
   window.addEventListener('unhandledrejection', event => {
     const bootScreen = $('appBootScreen');
     const bootMessage = $('appBootMessage');
     if (bootScreen) bootScreen.hidden = false;
-    if (bootMessage) bootMessage.textContent = `ScriptFix could not finish opening: ${event.reason?.message || 'a startup request failed'}. Close and reopen the app.`;
+    if (bootMessage) bootMessage.textContent = `ScriptFix has crashed with message: ${event.reason?.message || 'a startup request failed'}. Refreshing the website should help!.`;
   });
   let attachedFiles = [], busy = false, activeChat = null, selectedMode = 'fix';
   const modePrompts = {
@@ -831,9 +831,9 @@
         addMessage('assistant', `The API received the request but rejected it. Check the API error details below, then verify the key, model, and the selected organization or project in AI settings.\n\n${error.message}`);
       } else {
         addMessage('assistant', cfg.provider === 'local'
-          ? `I couldn’t reach Ollama on this computer. Make sure it is installed and that the model (${cfg.localModel}) is available. For the GitHub Pages version, run source\\Install Ollama.cmd once to allow this site in Ollama, then approve your browser’s local-network prompt if it appears.\n\n${error.message}`
+          ? `Ollama is a deprecated AI option, if this breaks, please resort to OpenAI or Puter, as this won't be fixed.\n\n${error.message}`
           : cfg.provider === 'puter'
-          ? `I couldn’t connect to Puter Cloud. Check your internet connection, allow the Puter sign-in window if prompted, and try again. If your account has reached its usage limit, check Puter account settings.\n\n${error.message}`
+          ? `I couldn’t connect to Puter Cloud. Check your internet connection, allow the Puter sign-in window if prompted, and try again. If your account has reached its usage limit, check your allowance in settings > allowance\n\n${error.message}`
           : `I couldn’t connect to the AI service. Check your network connection, API endpoint, and whether the provider allows requests from a browser (CORS).\n\n${error.message}`);
       }
     } finally { busy = false; $('sendButton').disabled = false; promptBox.focus(); }

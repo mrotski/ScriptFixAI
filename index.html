@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#92969e" />
   <link rel="icon" href="source/app-icon.ico" sizes="any" />
-  <title>ScriptFix AI</title>
+  <title>ScriptFix AI 2</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -19,7 +19,7 @@
   <main class="window">
     <header class="topbar">
       <a class="brand" href="#" aria-label="ScriptFix AI home"><span class="brand-mark"><img src="source/logo.svg" alt="" /></span><span>scriptfix<span class="brand-ai">.ai</span></span></a>
-      <span class="top-note"><i class="status-dot"></i> YOUR CODE, A LITTLE LESS BROKEN</span>
+      <span class="top-note"><i class="status-dot"></i> Code related stuff? We got you!</span>
         <div class="topbar-actions">
         <button id="apiKeyButton" class="api-key-button" title="Add or update your API key"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="m11 12 8-8m-3 3 3 3m-6 0 3 3"/></svg><span>API key</span></button>
         <button class="settings-button" id="settingsButton" title="AI settings" aria-label="AI settings"><svg viewBox="0 0 24 24"><path d="M12 8.3a3.7 3.7 0 1 0 0 7.4 3.7 3.7 0 0 0 0-7.4Zm9.1 4.8v-2.2l-2.3-.7a7.6 7.6 0 0 0-.7-1.7l1.2-2.1-1.6-1.6-2.1 1.2a7.6 7.6 0 0 0-1.7-.7L13.2 3h-2.3l-.7 2.3a7.6 7.6 0 0 0-1.7.7L6.4 4.8 4.8 6.4 6 8.5a7.6 7.6 0 0 0-.7 1.7l-2.3.7v2.3l2.3.7a7.6 7.6 0 0 0 .7 1.7l-1.2 2.1 1.6 1.6 2.1-1.2a7.6 7.6 0 0 0 1.7.7l.7 2.3h2.3l.7-2.3a7.6 7.6 0 0 0 1.7-.7l2.1 1.2 1.6-1.6L18 15.6a7.6 7.6 0 0 0 .7-1.7Z"/></svg></button>
@@ -35,13 +35,13 @@
         <div id="chatHistory" class="chat-history" aria-label="Saved chats"></div>
         <div class="side-label">GET STARTED</div>
         <div class="hint-card"><div class="hint-icon">↥</div><div><strong>Drop in a script</strong><p>or click below to pick a file</p></div></div>
-        <button id="uploadSide" class="upload-side">Choose a file <span>↗</span></button>
+        <button id="uploadSide" class="upload-side">Select a file to upload <span>↗</span></button>
         <section id="desktopPromo" class="desktop-promo" hidden aria-label="Desktop app information">
           <button id="dismissDesktopPromo" class="promo-dismiss" type="button" aria-label="Dismiss">×</button>
           <div class="promo-icon">✳</div>
           <strong>Get unlimited access to AI with the desktop app</strong>
           <p>Run a coding model on your computer with no API key or usage credits.</p>
-          <a href="ScriptFix%20AI.exe" download>Get the desktop app <span>↗</span></a>
+          <a href="ScriptFix%20AI.exe" download>Get the desktop app (DEPRECATED)<span>↗</span></a>
         </section>
         <div class="sidebar-footer"><span class="privacy-icon">◈</span><span>Chats are saved in this browser.</span></div>
       </aside>
@@ -51,7 +51,7 @@
             <div class="orb-wrap"><div class="orb"><span>✳</span></div><span class="orb-spark spark-one">✦</span><span class="orb-spark spark-two">✧</span></div>
             <div class="welcome-kicker">START A NEW CHAT</div>
             <h1>What are we<br/><span>working on?</span></h1>
-            <p id="welcomeDescription">Choose a mode, then paste your code or describe what you want to explore.</p>
+            <p id="welcomeDescription">Choose an appropriate mode, then start your coding journey.</p>
             <div class="mode-picker" role="group" aria-label="Choose a chat mode">
               <button class="mode-choice selected" type="button" data-mode="fix" aria-pressed="true"><span class="mode-symbol">⌕</span><span><strong>Fix code</strong><small>Debug and improve</small></span></button>
               <button class="mode-choice" type="button" data-mode="create" aria-pressed="false"><span class="mode-symbol">✳</span><span><strong>Create code</strong><small>Build something new</small></span></button>
