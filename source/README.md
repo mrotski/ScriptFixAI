@@ -1,3 +1,7 @@
+
+                                                                             SCRIPTFIX AI, an AI created with AI
+
+
 # ScriptFix AI
 
 A small, editable code-fixing assistant with a frosted-glass chat interface.

@@ -1,7 +1,10 @@
-ScriptFix AI 2.1.2
+ScriptFix AI 2.1.3
+
+What's new in 2.1.3  (14/11/26)
+-Fixed some buggy bugs, and overall updated the service
 
 What’s new in 2.1.2
--Some bad wording has been fixed
+-Fixed some spelling mistakes.
 
 What’s new in 2.1.1
 - Removed the matrix-rain animation from the main menu and settings backgrounds.

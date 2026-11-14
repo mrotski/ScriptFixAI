@@ -30,7 +30,7 @@
       <aside class="sidebar">
         <div class="side-eyebrow">YOUR WORKSPACE</div>
         <button id="newChat" class="new-chat"><span>＋</span> New conversation <kbd>⌘ K</kbd></button>
-        <div class="history-heading"><span class="side-label">RECENT CHATS</span><span><button id="exportChats" class="clear-history" title="Export saved chats">Export</button><button id="clearHistory" class="clear-history" title="Clear saved chats">Clear</button></span></div>
+        <div class="history-heading"><span class="side-label">RECENT CHATS</span><span><button id="exportChats" class="clear-history" title="Export saved chats">Export chats</button><button id="clearHistory" class="clear-history" title="Clear saved chats">Clear</button></span></div>
         <input id="chatSearch" class="chat-search" type="search" placeholder="Search chats…" aria-label="Search saved chats" />
         <div id="chatHistory" class="chat-history" aria-label="Saved chats"></div>
         <div class="side-label">GET STARTED</div>
@@ -43,7 +43,7 @@
           <p>Run a coding model on your computer with no API key or usage credits.</p>
           <a href="ScriptFix%20AI.exe" download>Get the desktop app (DEPRECATED)<span>↗</span></a>
         </section>
-        <div class="sidebar-footer"><span class="privacy-icon">◈</span><span>Chats are saved in this browser.</span></div>
+        <div class="sidebar-footer"><span class="privacy-icon">◈</span><span>Chats are saved in this browser's local memory.</span></div>
       </aside>
       <section class="chat-area">
         <div class="chat-scroll" id="chatScroll">
@@ -66,7 +66,7 @@
             <textarea id="prompt" rows="1" placeholder="Tell me what’s going wrong…" aria-label="Message ScriptFix AI"></textarea>
             <div class="composer-bottom"><div class="composer-tools"><button class="tool-button" id="attachButton"><span class="attach-icon">＋</span><span>Add files</span></button><span class="tool-divider"></span><span id="fileLabel" class="file-label"></span></div><div class="send-side"><select id="promptPreset" class="prompt-preset" aria-label="Prompt preset"><option value="">Prompt preset</option><option value="Explain this code simply, using plain language and a small example if helpful.">Explain simply</option><option value="Review this code for correctness, security, performance, and maintainability.">Production review</option><option value="Review this code for security risks and suggest safer alternatives.">Security review</option><option value="Help me write tests for this code. Explain what each test covers.">Write tests</option></select><span class="send-hint">ENTER TO SEND</span><button id="sendButton" class="send-button" aria-label="Send message"><span>↑</span></button></div></div>
           </div>
-          <div class="disclaimer"><span class="sparkle">✳</span> AI can make mistakes. Give your code a once-over before shipping.</div>
+          <div class="disclaimer"><span class="sparkle">✳</span> AI can make mistakes. Please check your code before doing stuff with it.</div>
         </div>
         <input type="file" id="fileInput" multiple accept=".js,.jsx,.ts,.tsx,.py,.cpp,.c,.h,.hpp,.cs,.java,.go,.rs,.php,.rb,.swift,.kt,.sh,.ps1,.html,.css,.json,.sql,.txt,.lua,.r,.yaml,.yml,.toml,.xml,.md" hidden />
       </section>
