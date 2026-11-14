@@ -8,6 +8,8 @@ Version 2.1 adds live replies, multi-file project attachments, AI code-change re
 
 Double-click `ScriptFix AI.exe` to use the local Ollama model and saved chat history. Keep `index.html` and the `source` folder beside it. The launcher opens a borderless Microsoft Edge app window with custom minimize, maximize, close, and drag controls in the page header.
 
+The browser version adapts to phones and touch screens: chat history opens from the header menu, while the message composer stays at the bottom of the screen.
+
 ## Use local AI
 
 ScriptFix defaults to the local `llama3.2` model through Ollama. Ollama and this model are present on this computer, and the launcher starts Ollama's local server automatically when you send a message. The local model runs on your computer and does not need an API key or API credits.
@@ -21,6 +23,7 @@ Choose **Fix code** to diagnose or improve existing code, **Create code** to bui
 ## Use keyless cloud AI
 
 On a hosted website, choose **Puter Cloud — no API key**. It uses the lightweight `gpt-5-nano` model by default. Puter may ask you to sign in; usage is handled under your Puter account limits and terms. Messages and attached code are sent to Puter for processing. The packaged desktop app runs from a local file and hides this option because Puter requires a website origin.
+
 
 ## Connect a cloud AI model
 

@@ -3,6 +3,24 @@
   const $ = (id) => document.getElementById(id);
   const promptBox = $('prompt'), messages = $('messages'), scroll = $('chatScroll');
   const dialog = $('settingsDialog');
+  const sidebarToggle = $('sidebarToggle');
+  const appWindow = document.querySelector('.window');
+  function setMobileSidebarOpen(open) {
+    const isOpen = open && window.matchMedia('(max-width: 700px), (hover: none) and (pointer: coarse) and (max-width: 900px)').matches;
+    appWindow.classList.toggle('sidebar-open', isOpen);
+    sidebarToggle.setAttribute('aria-expanded', String(isOpen));
+    sidebarToggle.setAttribute('aria-label', isOpen ? 'Close chat history' : 'Open chat history');
+  }
+  sidebarToggle.addEventListener('click', () => setMobileSidebarOpen(!appWindow.classList.contains('sidebar-open')));
+  document.querySelector('.workspace').addEventListener('click', event => {
+    if (event.target === event.currentTarget) setMobileSidebarOpen(false);
+  });
+  $('chatHistory').addEventListener('click', event => {
+    if (event.target.closest('.history-open')) setMobileSidebarOpen(false);
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') setMobileSidebarOpen(false);
+  });
   const DEFAULT_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
   const DEFAULT_MODEL = 'gpt-4.1-mini';
   const DEFAULT_PUTER_MODEL = 'gpt-5-nano';
@@ -672,6 +690,7 @@
   $('clearKey').addEventListener('click', () => { localStorage.removeItem('scriptfix.key'); $('apiKey').value = ''; showToast('Saved API key cleared.'); });
   document.querySelectorAll('.mode-choice').forEach(button => button.addEventListener('click', () => setChatMode(button.dataset.mode)));
   $('newChat').addEventListener('click', () => {
+    setMobileSidebarOpen(false);
     activeChat = null; localStorage.removeItem('scriptfix.activeChat');
     setChatMode('fix');
     messages.replaceChildren(); $('welcome').hidden = false; promptBox.value = ''; attachedFiles = []; $('fileLabel').textContent = ''; renderChatHistory(); promptBox.focus();

@@ -1,5 +1,8 @@
 ScriptFix AI 2.1.3
 
+What's new in 2.2.0
+-Optimized for phones
+
 What's new in 2.1.3  (14/11/26)
 -Fixed some buggy bugs, and overall updated the service
 
