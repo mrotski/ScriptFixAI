@@ -22,6 +22,7 @@
     if (event.key === 'Escape') setMobileSidebarOpen(false);
   });
   const DEFAULT_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
+  const DEVELOPER_ACCESS_CODE = '4985';
   const DEFAULT_MODEL = 'gpt-4.1-mini';
   const DEFAULT_PUTER_MODEL = 'gpt-5-nano';
   const OPENAI_MODEL_CHOICES = [
@@ -385,7 +386,79 @@
       content.textContent = `Couldn’t load source/versioninfo.txt. ${error.message}`;
     }
   }
+  let developerUnlocked = false;
+  let developerFileName = '';
+  function unlockDeveloperTools() {
+    if ($('developerCode').value.trim() !== DEVELOPER_ACCESS_CODE) {
+      $('developerGateMessage').textContent = 'That code did not match. Try again.';
+      $('developerCode').select();
+      return;
+    }
+    developerUnlocked = true;
+    $('developerGate').hidden = true;
+    $('developerEditor').hidden = false;
+    $('jsonEditorStatus').textContent = 'Paste JSON below or open a .json file.';
+    $('jsonEditor').focus();
+  }
+  function sortJsonValue(value, field, descending) {
+    let sortedArrays = 0;
+    const compare = (left, right) => {
+      const a = left == null ? '' : left;
+      const b = right == null ? '' : right;
+      if (typeof a === 'number' && typeof b === 'number') return a - b;
+      return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' });
+    };
+    const visit = current => {
+      if (Array.isArray(current)) {
+        const items = current.map(visit);
+        const sortable = Boolean(field) && items.length > 1 && items.every(item => item && typeof item === 'object' && !Array.isArray(item) && Object.prototype.hasOwnProperty.call(item, field));
+        if (sortable) {
+          items.sort((left, right) => (descending ? -1 : 1) * compare(left[field], right[field]));
+          sortedArrays++;
+        }
+        return items;
+      }
+      if (current && typeof current === 'object') {
+        return Object.fromEntries(Object.keys(current).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })).map(key => [key, visit(current[key])]));
+      }
+      return current;
+    };
+    return { value: visit(value), sortedArrays };
+  }
+  function formatJsonEditor(sortArrays) {
+    if (!developerUnlocked) return;
+    const editor = $('jsonEditor');
+    try {
+      const parsed = JSON.parse(editor.value);
+      if (sortArrays) {
+        const field = $('jsonSortField').value.trim();
+        const result = sortJsonValue(parsed, field, $('jsonSortOrder').value === 'desc');
+        editor.value = JSON.stringify(result.value, null, 2);
+        $('jsonEditorStatus').textContent = `Formatted JSON; sorted ${result.sortedArrays} array${result.sortedArrays === 1 ? '' : 's'} by “${field || 'object keys only'}”.`;
+      } else {
+        editor.value = JSON.stringify(parsed, null, 2);
+        $('jsonEditorStatus').textContent = 'JSON formatted. Array order is unchanged.';
+      }
+    } catch (error) {
+      $('jsonEditorStatus').textContent = `Could not parse JSON: ${error.message}`;
+    }
+  }
+  function downloadJsonEditor() {
+    if (!developerUnlocked) return;
+    try {
+      const text = JSON.stringify(JSON.parse($('jsonEditor').value), null, 2);
+      const blobUrl = URL.createObjectURL(new Blob([text], { type: 'application/json;charset=utf-8' }));
+      const link = document.createElement('a');
+      const baseName = developerFileName.replace(/\.json$/i, '') || 'bookbeat-export';
+      link.href = blobUrl; link.download = `${baseName}-sorted.json`;
+      document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+      $('jsonEditorStatus').textContent = `Downloaded ${baseName}-sorted.json.`;
+    } catch (error) {
+      $('jsonEditorStatus').textContent = `Could not save JSON: ${error.message}`;
+    }
+  }
   function setSettingsCategory(category) {
+    if (category !== 'developer') developerUnlocked = false;
     document.querySelectorAll('[data-settings-tab]').forEach(button => {
       const active = button.dataset.settingsTab === category;
       button.classList.toggle('active', active);
@@ -402,6 +475,14 @@
       if (loadSettings().provider === 'puter') refreshPuterUsage();
     }
     if (category === 'version') loadVersionInfo();
+    if (category === 'developer') {
+      developerUnlocked = false;
+      $('developerGate').hidden = false;
+      $('developerEditor').hidden = true;
+      $('developerCode').value = '';
+      $('developerGateMessage').textContent = 'This is a simple in-app gate, not a secure password.';
+      setTimeout(() => $('developerCode').focus(), 0);
+    }
   }
   function persistChats() {
     if (!activeChat || !activeChat.messages.length) return;
@@ -593,6 +674,29 @@
     });
   }
   document.querySelectorAll('[data-settings-tab]').forEach(button => button.addEventListener('click', () => setSettingsCategory(button.dataset.settingsTab)));
+  $('developerUnlock').addEventListener('click', unlockDeveloperTools);
+  $('developerCode').addEventListener('keydown', event => {
+    if (event.key === 'Enter') { event.preventDefault(); unlockDeveloperTools(); }
+  });
+  $('openJsonFile').addEventListener('click', () => $('jsonFilePicker').click());
+  $('jsonFilePicker').addEventListener('change', async event => {
+    if (!developerUnlocked) { event.target.value = ''; return; }
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      $('jsonEditor').value = await file.text();
+      developerFileName = file.name;
+      $('jsonFileName').textContent = file.name;
+      $('jsonEditorStatus').textContent = `Opened ${file.name}. Sort or format it, then download a separate copy.`;
+      $('jsonEditor').focus();
+    } catch (error) {
+      $('jsonEditorStatus').textContent = `Could not read ${file.name}: ${error.message}`;
+    }
+    event.target.value = '';
+  });
+  $('sortJson').addEventListener('click', () => formatJsonEditor(true));
+  $('formatJson').addEventListener('click', () => formatJsonEditor(false));
+  $('downloadJson').addEventListener('click', downloadJsonEditor);
   $('startUsageTracking').addEventListener('click', () => {
     const model = loadSettings().model || DEFAULT_MODEL;
     const budget = Number($('usageBudget').value);

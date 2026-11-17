@@ -30,7 +30,7 @@ Choose **Puter Cloud — no API key** on a hosted website or localhost address. 
 
 ## Connect a cloud AI model
 
-Settings are grouped into **AI provider**, **Appearance**, **Usage**, **Info of this version**, and **Privacy & data** categories. Toggle dark mode in Appearance; the choice is saved in this browser.
+Settings are grouped into **AI provider**, **Appearance**, **Usage**, **Info of this version**, **Developer**, and **Privacy & data** categories. Toggle dark mode in Appearance; the choice is saved in this browser. Developer tools are behind a simple in-app code prompt (not a secure lock) and include a local JSON editor for sorting and formatting exports.
 
 The **Usage** category shows Puter’s live monthly account allowance when Puter Cloud is selected. For an OpenAI-compatible API, enter a monthly budget; ScriptFix follows the model selected in AI settings and fills in prices for supported common models. Estimates are stored locally and count successful API responses that include token usage. For other models, enter their input/output prices to estimate cost.
 
@@ -52,6 +52,7 @@ Open AI settings, choose **OpenAI-compatible API**, enter an API key, choose a m
 - `source/logo.svg` — custom vector logo, rendered consistently across operating systems
 - `source/app-icon.ico` — browser favicon
 - `source/version.txt` — displayed app version; edit this file to change the version shown in the app and hosted website
+- `source/versioninfo.txt` — editable release notes and bug-fix information shown in Settings
 - `source/versioninfo.txt` — editable release notes, fixed bugs, and known issues shown in Settings
 
 Puter Cloud needs an internet connection and loads its JavaScript SDK from Puter. The OpenAI-compatible API option makes browser requests directly, so its service must permit browser requests (CORS).

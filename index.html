@@ -92,6 +92,7 @@
           <button type="button" class="settings-nav-item" data-settings-tab="appearance">Appearance</button>
           <button type="button" class="settings-nav-item" data-settings-tab="usage">Usage</button>
           <button type="button" class="settings-nav-item" data-settings-tab="version">Info of this version</button>
+          <button type="button" class="settings-nav-item" data-settings-tab="developer">Developer</button>
           <button type="button" class="settings-nav-item" data-settings-tab="privacy">Privacy &amp; data</button>
         </nav>
         <div class="settings-content">
@@ -146,6 +147,35 @@
           <section class="settings-page" data-settings-page="version" hidden>
             <p class="dialog-intro">Release notes, fixed bugs, and known issues for this version.</p>
             <pre id="versionInfoContent" class="version-info-content" aria-live="polite">Loading version information…</pre>
+          </section>
+          <section class="settings-page" data-settings-page="developer" hidden>
+            <div id="developerGate" class="developer-gate">
+              <p class="dialog-intro">Enter the developer code to open the JSON organizer.</p>
+              <label for="developerCode">Access code</label>
+              <input id="developerCode" type="password" inputmode="numeric" autocomplete="off" placeholder="Enter code" />
+              <button id="developerUnlock" type="button" class="save-button developer-unlock">Unlock</button>
+              <p id="developerGateMessage" class="developer-note" aria-live="polite">This is a simple in-app gate, not a secure password.</p>
+            </div>
+            <div id="developerEditor" class="developer-editor" hidden>
+              <p class="dialog-intro">Edit a JSON export, sort object keys, and sort matching item lists by a field such as title or author. Your original file is not changed.</p>
+              <div class="developer-file-row">
+                <button id="openJsonFile" type="button" class="save-button developer-secondary">Open .json</button>
+                <span id="jsonFileName" class="developer-file-name">No file selected</span>
+                <input id="jsonFilePicker" type="file" accept=".json,application/json" hidden />
+              </div>
+              <label for="jsonSortField">Sort arrays of objects by</label>
+              <div class="developer-sort-row">
+                <input id="jsonSortField" type="text" value="title" placeholder="For example: title" />
+                <select id="jsonSortOrder" class="provider-select" aria-label="Sort order"><option value="asc">A to Z</option><option value="desc">Z to A</option></select>
+              </div>
+              <div class="developer-actions">
+                <button id="sortJson" type="button" class="save-button">Sort &amp; format</button>
+                <button id="formatJson" type="button" class="save-button developer-secondary">Format only</button>
+                <button id="downloadJson" type="button" class="save-button developer-secondary">Download JSON</button>
+              </div>
+              <p id="jsonEditorStatus" class="developer-note" aria-live="polite">Paste JSON below or open a .json file.</p>
+              <textarea id="jsonEditor" class="json-editor" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="JSON text editor" placeholder="Paste a JSON export here…"></textarea>
+            </div>
           </section>
           <section class="settings-page" data-settings-page="privacy" hidden>
             <p class="dialog-intro">Your saved chats and settings stay in this browser on this device.</p>

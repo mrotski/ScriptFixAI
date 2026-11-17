@@ -1,4 +1,14 @@
-ScriptFix AI 2.1.3
+ScriptFix AI 2.3.0
+
+What's new in 2.3.0
+- Added a code-gated Developer section with a JSON text editor.
+- Sort JSON object keys and matching arrays by a field such as title or author; format and download a separate copy.
+
+
+ScriptFix AI 2.2.0.1
+
+What's new in 2.2.0.1
+-fixes
 
 What's new in 2.2.0
 -Optimized for phones
