@@ -1,3 +1,12 @@
+ScriptFix AI 2.4.0
+
+What's new in 2.4.0
+- Compare AI suggestions with attached files before applying them to the saved chat copy; undo changes or download a separate copy.
+- Back up and restore saved chats with JSON archives.
+- Save and reuse custom prompts from Settings.
+- Retry Puter requests and see clearer guidance when a request fails.
+- Keep failed request messages out of future AI context.
+
 ScriptFix AI 2.3.0
 
 What's new in 2.3.0

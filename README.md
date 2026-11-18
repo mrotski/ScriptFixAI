@@ -1,41 +1,34 @@
 # ScriptFix AI
 
-A small, editable coding assistant with a frosted-glass chat interface. ScriptFix AI 2.0 supports fixing code, creating code, and talking about code.
+ScriptFix AI is a browser based coding assistant for debugging, creating, and understanding code. Its interface uses a quiet glass inspired look and keeps chat history in the browser on the current device.
 
-Version 2.1 adds live replies, multi-file project attachments, AI code-change review, safe JavaScript snippet runs, friendly model guidance, prompt presets, and saved-chat search/export.
+## Open ScriptFix
 
-## Run the app
+Serve this folder as a website, for example with GitHub Pages, then open its `index.html`. A hosted page is needed for reliable provider access and release note loading; opening the file directly does not provide the same browser origin.
 
-Double-click `ScriptFix AI.exe` to use the local Ollama model and saved chat history. Keep `index.html` and the `source` folder beside it. The launcher opens a borderless Microsoft Edge app window with custom minimize, maximize, close, and drag controls in the page header.
+## Choose an AI provider
 
-The browser version adapts to phones and touch screens: chat history opens from the header menu, while the message composer stays at the bottom of the screen.
+- **Puter Cloud** works without adding an API key. Puter may ask you to sign in, and its available models and usage depend on your Puter account.
+- **OpenAI compatible API** lets you enter an API key, endpoint, and model in AI settings. The key is saved in this browser's local storage. Your provider must allow requests from a browser (CORS).
 
-## Use local AI
+Messages and attached code are sent to the provider you choose. Do not include secrets in code you send to an AI service.
 
-ScriptFix defaults to the local `llama3.2` model through Ollama. Ollama and this model are present on this computer, and the launcher starts Ollama's local server automatically when you send a message. The local model runs on your computer and does not need an API key or API credits.
+## Web features
 
-Recent chats are listed in the sidebar and stored in this browser on this computer. Chats include their conversation context so they can be reopened and continued. Use **Clear** above the list to remove the saved history.
+- Fix code, create code, and talk about programming in separate chat modes.
+- Attach several small project files and review suggested changes against the attached version before applying them to the saved chat copy. Download a separate fixed copy or undo an applied change.
+- Save reusable instructions in Settings → Prompt library.
+- Search, export, back up, and import saved chats. Chat backups are JSON files; Markdown export is for reading and sharing.
+- Track a personal API budget estimate in Settings → Usage from your budget and token usage returned by the API. Puter users can view the monthly allowance reported by Puter when it is available. Neither view is a complete live account billing page.
+- Read release notes from `source/versioninfo.txt` and change the displayed version in `source/version.txt`.
 
-## Chat modes
+Chats, prompts, and settings stay in this browser's local storage. They are not synced between devices. Use the chat backup controls to move saved conversations.
 
-Choose **Fix code** to diagnose or improve existing code, **Create code** to build something new, or **Talk about code** to ask questions, understand a script, learn a concept, or compare approaches. Each saved chat keeps its chosen mode.
+## Edit the project
 
-## Use keyless cloud AI
-
-On a hosted website, choose **Puter Cloud — no API key**. It uses the lightweight `gpt-5-nano` model by default. Puter may ask you to sign in; usage is handled under your Puter account limits and terms. Messages and attached code are sent to Puter for processing. The packaged desktop app runs from a local file and hides this option because Puter requires a website origin.
-
-
-## Connect a cloud AI model
-
-Open AI settings, choose **OpenAI-compatible API**, enter an API key, choose a model by its friendly name, and save. The default endpoint is OpenAI's chat-completions endpoint, and the default model is `gpt-4.1-mini`. The key is stored in the browser's local storage; code you send is processed by the API provider you configure. Puter Cloud also loads a friendly picker of the models available to the signed-in account.
-
-## Tweak it
-
-- `index.html` — layout and interface text
+- `index.html` — page layout and interface text
 - `source/styles.css` — colors, spacing, and glass effects
-- `source/app.js` — chat behavior and API request
-- `source/desktop/Program.cs` — source for the small Windows app launcher, including its 2.0 version metadata
-- `source/version.txt` — displayed app version; edit this file to change the version shown in the app and hosted website
+- `source/app.js` — chat behavior and provider requests
+- `source/logo.svg` — app logo
+- `source/version.txt` — displayed version
 - `source/versioninfo.txt` — release notes shown in Settings
-
-The launcher expects Microsoft Edge. Puter Cloud needs an internet connection and loads its JavaScript SDK from Puter. The OpenAI-compatible API option makes browser requests directly, so its service must permit browser requests (CORS).

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#92969e" />
   <link rel="icon" href="source/app-icon.ico" sizes="any" />
-  <title>ScriptFix AI 2</title>
+  <title>ScriptFix AI</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -19,7 +19,7 @@
   <main class="window">
     <header class="topbar">
       <a class="brand" href="#" aria-label="ScriptFix AI home"><span class="brand-mark"><img src="source/logo.svg" alt="" /></span><span>scriptfix<span class="brand-ai">.ai</span></span></a>
-      <span class="top-note"><i class="status-dot"></i> Code related stuff? We got you!</span>
+      <span class="top-note"><i class="status-dot"></i> Your coding assistant</span>
         <div class="topbar-actions">
         <button id="sidebarToggle" class="sidebar-toggle" type="button" aria-label="Open chat history" aria-controls="sidebar" aria-expanded="false">☰</button>
         <button id="apiKeyButton" class="api-key-button" title="Add or update your API key"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="m11 12 8-8m-3 3 3 3m-6 0 3 3"/></svg><span>API key</span></button>
@@ -31,20 +31,14 @@
       <aside class="sidebar" id="sidebar">
         <div class="side-eyebrow">YOUR WORKSPACE</div>
         <button id="newChat" class="new-chat"><span>＋</span> New conversation <kbd>⌘ K</kbd></button>
-        <div class="history-heading"><span class="side-label">RECENT CHATS</span><span><button id="exportChats" class="clear-history" title="Export saved chats">Export chats</button><button id="clearHistory" class="clear-history" title="Clear saved chats">Clear</button></span></div>
+        <div class="history-heading"><span class="side-label">RECENT CHATS</span><span class="history-tools"><button id="exportChats" class="clear-history" title="Export chats as Markdown" aria-label="Export chats as Markdown">MD</button><button id="backupChats" class="clear-history" title="Download restorable chat backup" aria-label="Download chat backup">Backup</button><button id="importChats" class="clear-history" title="Import a chat backup" aria-label="Import chat backup">Import</button><button id="clearHistory" class="clear-history" title="Clear saved chats">Clear</button></span></div>
+        <input id="chatArchivePicker" type="file" accept=".json,application/json" hidden />
         <input id="chatSearch" class="chat-search" type="search" placeholder="Search chats…" aria-label="Search saved chats" />
         <div id="chatHistory" class="chat-history" aria-label="Saved chats"></div>
         <div class="side-label">GET STARTED</div>
         <div class="hint-card"><div class="hint-icon">↥</div><div><strong>Drop in a script</strong><p>or click below to pick a file</p></div></div>
         <button id="uploadSide" class="upload-side">Select a file to upload <span>↗</span></button>
-        <section id="desktopPromo" class="desktop-promo" hidden aria-label="Desktop app information">
-          <button id="dismissDesktopPromo" class="promo-dismiss" type="button" aria-label="Dismiss">×</button>
-          <div class="promo-icon">✳</div>
-          <strong>Get unlimited access to AI with the desktop app</strong>
-          <p>Run a coding model on your computer with no API key or usage credits.</p>
-          <a href="ScriptFix%20AI.exe" download>Get the desktop app (DEPRECATED)<span>↗</span></a>
-        </section>
-        <div class="sidebar-footer"><span class="privacy-icon">◈</span><span>Chats are saved in this browser's local memory.</span></div>
+        <div class="sidebar-footer"><span class="privacy-icon">◈</span><span>Chats are saved in this browser.</span></div>
       </aside>
       <section class="chat-area">
         <div class="chat-scroll" id="chatScroll">
@@ -52,7 +46,7 @@
             <div class="orb-wrap"><div class="orb"><span>✳</span></div><span class="orb-spark spark-one">✦</span><span class="orb-spark spark-two">✧</span></div>
             <div class="welcome-kicker">START A NEW CHAT</div>
             <h1>What are we<br/><span>working on?</span></h1>
-            <p id="welcomeDescription">Choose an appropriate mode, then start your coding journey.</p>
+            <p id="welcomeDescription">Fix bugs, build useful tools, or understand code—one conversation at a time.</p>
             <div class="mode-picker" role="group" aria-label="Choose a chat mode">
               <button class="mode-choice selected" type="button" data-mode="fix" aria-pressed="true"><span class="mode-symbol">⌕</span><span><strong>Fix code</strong><small>Debug and improve</small></span></button>
               <button class="mode-choice" type="button" data-mode="create" aria-pressed="false"><span class="mode-symbol">✳</span><span><strong>Create code</strong><small>Build something new</small></span></button>
@@ -91,6 +85,7 @@
           <button type="button" class="settings-nav-item active" data-settings-tab="provider" aria-current="page">AI provider</button>
           <button type="button" class="settings-nav-item" data-settings-tab="appearance">Appearance</button>
           <button type="button" class="settings-nav-item" data-settings-tab="usage">Usage</button>
+          <button type="button" class="settings-nav-item" data-settings-tab="prompts">Prompt library</button>
           <button type="button" class="settings-nav-item" data-settings-tab="version">Info of this version</button>
           <button type="button" class="settings-nav-item" data-settings-tab="developer">Developer</button>
           <button type="button" class="settings-nav-item" data-settings-tab="privacy">Privacy &amp; data</button>
@@ -143,6 +138,16 @@
               <p id="usageMonth" class="usage-note"></p>
               <p id="usageTokenNote" class="usage-note">Estimates use usage data returned by the API. Check your provider’s billing page for the exact balance.</p>
             </div>
+          </section>
+          <section class="settings-page" data-settings-page="prompts" hidden>
+            <p class="dialog-intro">Save instructions you reuse. They appear in the prompt menu beside the message box.</p>
+            <label for="customPromptTitle">Prompt name</label>
+            <input id="customPromptTitle" type="text" maxlength="48" placeholder="For example: Explain for beginners" />
+            <label for="customPromptText">Instructions</label>
+            <textarea id="customPromptText" class="custom-prompt-text" maxlength="3000" placeholder="Write the instruction to add to your message…"></textarea>
+            <div class="prompt-library-actions"><button id="saveCustomPrompt" type="button" class="save-button">Save prompt</button><button id="cancelCustomPrompt" type="button" class="clear-button" hidden>Cancel edit</button></div>
+            <p id="promptLibraryStatus" class="usage-note" aria-live="polite">Prompts are stored in this browser.</p>
+            <div id="customPromptList" class="custom-prompt-list"></div>
           </section>
           <section class="settings-page" data-settings-page="version" hidden>
             <p class="dialog-intro">Release notes, fixed bugs, and known issues for this version.</p>

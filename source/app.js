@@ -22,6 +22,7 @@
     if (event.key === 'Escape') setMobileSidebarOpen(false);
   });
   const DEFAULT_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
+  const MAX_SAVED_CHATS = 40;
   const DEVELOPER_ACCESS_CODE = '4985';
   const DEFAULT_MODEL = 'gpt-4.1-mini';
   const DEFAULT_PUTER_MODEL = 'gpt-5-nano';
@@ -96,6 +97,10 @@
   let savedChats = [];
   try { savedChats = JSON.parse(localStorage.getItem('scriptfix.chats') || '[]'); if (!Array.isArray(savedChats)) savedChats = []; }
   catch { savedChats = []; }
+  let customPrompts = [];
+  try { customPrompts = JSON.parse(localStorage.getItem('scriptfix.customPrompts') || '[]'); if (!Array.isArray(customPrompts)) customPrompts = []; }
+  catch { customPrompts = []; }
+  let editingPromptId = '';
 
   const localFileApp = location.protocol === 'file:';
   let puterSdkReady = Promise.resolve();
@@ -457,6 +462,111 @@
       $('jsonEditorStatus').textContent = `Could not save JSON: ${error.message}`;
     }
   }
+  function renderPromptOptions() {
+    document.querySelectorAll('#promptPreset option[data-custom-prompt]').forEach(option => option.remove());
+    customPrompts.forEach(prompt => {
+      const option = document.createElement('option');
+      option.value = `custom:${prompt.id}`; option.textContent = prompt.title; option.dataset.customPrompt = 'true';
+      $('promptPreset').append(option);
+    });
+  }
+  function resetPromptForm() {
+    editingPromptId = '';
+    $('customPromptTitle').value = '';
+    $('customPromptText').value = '';
+    $('saveCustomPrompt').textContent = 'Save prompt';
+    $('cancelCustomPrompt').hidden = true;
+  }
+  function renderPromptLibrary() {
+    renderPromptOptions();
+    const list = $('customPromptList'); list.replaceChildren();
+    if (!customPrompts.length) {
+      const empty = document.createElement('p'); empty.className = 'usage-note'; empty.textContent = 'No saved prompts yet.'; list.append(empty); return;
+    }
+    customPrompts.forEach(prompt => {
+      const row = document.createElement('div'); row.className = 'custom-prompt-row';
+      const details = document.createElement('div');
+      const title = document.createElement('strong'); title.textContent = prompt.title;
+      const text = document.createElement('p'); text.textContent = prompt.text;
+      details.append(title, text);
+      const edit = document.createElement('button'); edit.type = 'button'; edit.textContent = 'Edit';
+      edit.addEventListener('click', () => {
+        editingPromptId = prompt.id; $('customPromptTitle').value = prompt.title; $('customPromptText').value = prompt.text;
+        $('saveCustomPrompt').textContent = 'Update prompt'; $('cancelCustomPrompt').hidden = false; $('customPromptTitle').focus();
+      });
+      const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = 'Delete';
+      remove.addEventListener('click', () => {
+        customPrompts = customPrompts.filter(item => item.id !== prompt.id);
+        try { localStorage.setItem('scriptfix.customPrompts', JSON.stringify(customPrompts)); renderPromptLibrary(); }
+        catch { showToast('Could not update saved prompts in this browser.'); }
+      });
+      row.append(details, edit, remove); list.append(row);
+    });
+  }
+  function saveCustomPrompt() {
+    const title = $('customPromptTitle').value.trim(), text = $('customPromptText').value.trim();
+    if (!title || !text) { $('promptLibraryStatus').textContent = 'Add a name and instructions before saving.'; return; }
+    const previous = customPrompts;
+    const next = editingPromptId
+      ? customPrompts.map(prompt => prompt.id === editingPromptId ? { ...prompt, title, text } : prompt)
+      : [...customPrompts, { id: globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, title, text }];
+    if (next.length > 40) { $('promptLibraryStatus').textContent = 'You can save up to 40 prompts.'; return; }
+    try {
+      localStorage.setItem('scriptfix.customPrompts', JSON.stringify(next));
+      customPrompts = next; renderPromptLibrary(); resetPromptForm();
+      $('promptLibraryStatus').textContent = 'Prompt saved in this browser.';
+    } catch {
+      customPrompts = previous;
+      $('promptLibraryStatus').textContent = 'Browser storage is full. Delete a prompt or free space, then try again.';
+    }
+  }
+  function normalizeImportedChat(chat, index) {
+    if (!chat || typeof chat !== 'object' || !Array.isArray(chat.messages)) return null;
+    const messages = chat.messages.filter(message => message && !message.isError && ['user', 'assistant'].includes(message.role) && typeof message.content === 'string').map(message => ({
+      id: typeof message.id === 'string' ? message.id : `import-${index}-${Math.random().toString(36).slice(2, 8)}`,
+      role: message.role,
+      content: message.content,
+      ...(typeof message.display === 'string' ? { display: message.display } : {}),
+      ...(Array.isArray(message.files) ? { files: message.files.filter(file => file && typeof file.name === 'string' && typeof file.text === 'string').map(file => ({ name: file.name, text: file.text, ...(typeof file.undoText === 'string' ? { undoText: file.undoText } : {}) })) } : {}),
+      ...(typeof message.sourceMessageId === 'string' ? { sourceMessageId: message.sourceMessageId } : {}),
+      ...(typeof message.prompt === 'string' ? { prompt: message.prompt } : {})
+    }));
+    if (!messages.length) return null;
+    const id = typeof chat.id === 'string' && chat.id ? chat.id : `import-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`;
+    return {
+      id,
+      title: typeof chat.title === 'string' ? chat.title.slice(0, 120) : 'Imported conversation',
+      mode: ['fix', 'create', 'talk'].includes(chat.mode) ? chat.mode : 'fix',
+      updatedAt: Number.isFinite(Number(chat.updatedAt)) ? Number(chat.updatedAt) : Date.now(),
+      messages
+    };
+  }
+  function exportChatArchive() {
+    const archive = { format: 'scriptfix-ai-chat-archive', version: 1, exportedAt: new Date().toISOString(), chats: savedChats };
+    const url = URL.createObjectURL(new Blob([JSON.stringify(archive, null, 2)], { type: 'application/json;charset=utf-8' }));
+    const link = document.createElement('a'); link.href = url; link.download = `scriptfix-ai-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  async function importChatArchive(file) {
+    if (file.size > 20 * 1024 * 1024) { showToast('That chat backup is over 20 MB.'); return; }
+    let data;
+    try { data = JSON.parse(await file.text()); }
+    catch (error) { showToast(`This backup is not valid JSON: ${error.message}`); return; }
+    const rawChats = Array.isArray(data) ? data : data?.format === 'scriptfix-ai-chat-archive' && Array.isArray(data.chats) ? data.chats : null;
+    if (!rawChats) { showToast('This file is not a ScriptFix chat backup.'); return; }
+    const imported = [...new Map(rawChats.map(normalizeImportedChat).filter(Boolean).map(chat => [chat.id, chat])).values()];
+    if (!imported.length) { showToast('No valid conversations were found in this backup.'); return; }
+    if (!confirm(`Merge ${imported.length} chat${imported.length === 1 ? '' : 's'} into this browser? Imported chats replace any with matching IDs.`)) return;
+    const importIds = new Set(imported.map(chat => chat.id));
+    const next = [...imported, ...savedChats.filter(chat => !importIds.has(chat.id))].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, MAX_SAVED_CHATS);
+    try { localStorage.setItem('scriptfix.chats', JSON.stringify(next)); }
+    catch { showToast('There is not enough browser storage for this backup. Export or remove some saved chats and try again.'); return; }
+    savedChats = next;
+    if (activeChat && importIds.has(activeChat.id)) openChat(activeChat.id);
+    else renderChatHistory();
+    const keptImported = next.filter(chat => importIds.has(chat.id)).length;
+    showToast(`Imported ${keptImported} chat${keptImported === 1 ? '' : 's'}.`);
+  }
   function setSettingsCategory(category) {
     if (category !== 'developer') developerUnlocked = false;
     document.querySelectorAll('[data-settings-tab]').forEach(button => {
@@ -475,6 +585,7 @@
       if (loadSettings().provider === 'puter') refreshPuterUsage();
     }
     if (category === 'version') loadVersionInfo();
+    if (category === 'prompts') renderPromptLibrary();
     if (category === 'developer') {
       developerUnlocked = false;
       $('developerGate').hidden = false;
@@ -489,19 +600,16 @@
     activeChat.updatedAt = Date.now();
     savedChats = savedChats.filter(chat => chat.id !== activeChat.id);
     savedChats.unshift(activeChat);
-    savedChats = savedChats.slice(0, 12);
+    savedChats = savedChats.slice(0, MAX_SAVED_CHATS);
     localStorage.setItem('scriptfix.activeChat', activeChat.id);
     try { localStorage.setItem('scriptfix.chats', JSON.stringify(savedChats)); }
-    catch { showToast('Chat history storage is full. Start a new conversation to save more.'); }
+    catch {
+      const recent = savedChats.slice(0, 12);
+      try { localStorage.setItem('scriptfix.chats', JSON.stringify(recent)); savedChats = recent; showToast('Browser storage is tight. ScriptFix kept your 12 most recent chats.'); }
+      catch { showToast('Chat history could not be saved because this browser is out of storage.'); }
+    }
     renderChatHistory();
     updateDesktopPromo();
-  }
-  function updateDesktopPromo() {
-    const card = $('desktopPromo');
-    if (!card) return;
-    const totalUserMessages = savedChats.reduce((total, chat) => total + (chat.messages || []).filter(message => message.role === 'user').length, 0);
-    const dismissed = localStorage.getItem('scriptfix.desktopPromoDismissed') === '1';
-    card.hidden = desktopApp || dismissed || totalUserMessages < 3;
   }
   function renderChatHistory() {
     const list = $('chatHistory'); list.replaceChildren();
@@ -515,15 +623,15 @@
       remove.addEventListener('click', event => { event.stopPropagation(); deleteChat(chat.id); });
       row.append(open, remove); list.append(row);
     });
-    updateDesktopPromo();
   }
   function openChat(id) {
     const chat = savedChats.find(item => item.id === id); if (!chat) return;
     activeChat = chat; localStorage.setItem('scriptfix.activeChat', id);
+    chat.messages.forEach(message => { if (!message.id) message.id = newMessageId(); });
     setChatMode(chat.mode || 'fix');
     messages.replaceChildren();
     $('welcome').hidden = chat.messages.length > 0;
-    chat.messages.forEach(message => addMessage(message.role, message.display || message.content, false, true));
+    chat.messages.forEach(message => addMessage(message.role, message.display || message.content, false, true, message.content, message.sourceMessageId));
     renderChatHistory(); scrollToBottom();
   }
   function deleteChat(id) {
@@ -538,7 +646,8 @@
     return activeChat || (activeChat = { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, title: 'New conversation', mode: selectedMode, updatedAt: Date.now(), messages: [] });
   }
   function scrollToBottom() { requestAnimationFrame(() => { scroll.scrollTop = scroll.scrollHeight; }); }
-  function addMessage(role, content, isTyping = false, skipSave = false, savedContent = content) {
+  function newMessageId() { return globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`; }
+  function addMessage(role, content, isTyping = false, skipSave = false, savedContent = content, sourceMessageId = '') {
     $('welcome').hidden = true;
     const row = document.createElement('div'); row.className = `message ${role}`;
     if (role === 'assistant') {
@@ -548,14 +657,14 @@
     if (isTyping) {
       bubble.innerHTML = '<div class="typing" aria-label="Thinking"><i></i><i></i><i></i></div>';
     } else if (role === 'assistant') {
-      renderAssistant(bubble, content);
+      renderAssistant(bubble, content, sourceMessageId);
     } else {
       bubble.textContent = content;
     }
     row.append(bubble); messages.append(row); scrollToBottom();
     if (!isTyping && !skipSave) {
       const chat = beginChat();
-      chat.messages.push({ role, content: savedContent, display: content });
+      chat.messages.push({ id: newMessageId(), role, content: savedContent, display: content, ...(sourceMessageId ? { sourceMessageId } : {}) });
       if (role === 'user' && chat.title === 'New conversation') {
         chat.title = (content || 'New conversation').replace(/\s+/g, ' ').trim().slice(0, 34) || 'New conversation';
       }
@@ -563,7 +672,7 @@
     }
     return row;
   }
-  function renderAssistant(bubble, content) {
+  function renderAssistant(bubble, content, sourceMessageId = '') {
     const parts = String(content).split(/```([^\n`]*)\n([\s\S]*?)```/g);
     const container = document.createElement('div'); container.className = 'assistant-content';
     for (let i = 0; i < parts.length; i += 3) {
@@ -593,10 +702,10 @@
           const run = document.createElement('button'); run.className = 'copy-code'; run.textContent = 'Run safely';
           run.addEventListener('click', () => runJavaScriptSafely(code, run)); header.append(run);
         }
-        const source = latestAttachedCode();
-        if (source) {
+        const sourceId = sourceMessageId || latestSourceMessage()?.id || '';
+        if (sourceId && filesForUserMessage(findMessageById(sourceId)).length) {
           const review = document.createElement('button'); review.className = 'copy-code'; review.textContent = 'Review changes';
-          review.addEventListener('click', () => showDiff(wrap, source, code)); header.append(review);
+          review.addEventListener('click', () => showDiff(wrap, sourceId, code)); header.append(review);
         }
         const pre = document.createElement('pre'); pre.className = 'code-body'; pre.textContent = code;
         wrap.append(header, pre); container.append(wrap);
@@ -605,18 +714,122 @@
     if (!container.childElementCount) { const p = document.createElement('p'); p.textContent = content; container.append(p); }
     bubble.append(container);
   }
-  function latestAttachedCode() {
-    const userMessage = [...(activeChat?.messages || [])].reverse().find(message => message.role === 'user' && /```/.test(message.content));
-    return userMessage?.content.match(/```[^\n`]*\n([\s\S]*?)```/)?.[1] || '';
+  function parseLegacyProjectFiles(content) {
+    const files = [], pattern = /\n\nProject file: ([^\r\n]+)\r?\n\r?\n```[^\r\n`]*\r?\n([\s\S]*?)```/g;
+    let match;
+    while ((match = pattern.exec(content || ''))) files.push({ name: match[1], text: match[2] });
+    return { files, prompt: (content || '').replace(pattern, '').trim() };
   }
-  function showDiff(wrap, before, after) {
-    wrap.querySelector('.diff-view')?.remove();
-    const oldLines = before.split('\n'), newLines = after.split('\n');
-    const count = Math.max(oldLines.length, newLines.length); const diff = document.createElement('pre'); diff.className = 'diff-view';
-    diff.textContent = Array.from({ length: count }, (_, index) => oldLines[index] === newLines[index]
-      ? `  ${oldLines[index] || ''}`
-      : `${oldLines[index] === undefined ? '' : `- ${oldLines[index]}\n`}${newLines[index] === undefined ? '' : `+ ${newLines[index]}`}`).filter(Boolean).join('\n');
-    wrap.append(diff);
+  function filesForUserMessage(message) {
+    if (!message || message.role !== 'user') return [];
+    if (Array.isArray(message.files)) return message.files;
+    return parseLegacyProjectFiles(message.content).files;
+  }
+  function findMessageById(id) { return activeChat?.messages?.find(message => message.id === id) || null; }
+  function latestSourceMessage() {
+    return [...(activeChat?.messages || [])].reverse().find(message => message.role === 'user' && filesForUserMessage(message).length) || null;
+  }
+  function requestMessage(message) {
+    const files = Array.isArray(message.files) ? message.files : [];
+    const content = files.length
+      ? `${message.content || ''}${files.map(file => `\n\nProject file: ${file.name}\n\n\`\`\`${file.name.split('.').pop()}\n${file.text}\n\`\`\``).join('')}`
+      : message.content;
+    return { role: message.role, content };
+  }
+  function conversationMessages() { return (activeChat?.messages || []).filter(message => !message.isError).map(requestMessage); }
+  function alignedDiffRows(before, after) {
+    const oldLines = before.replace(/\r\n/g, '\n').split('\n'), newLines = after.replace(/\r\n/g, '\n').split('\n');
+    const rows = []; let oldIndex = 0, newIndex = 0;
+    while (oldIndex < oldLines.length || newIndex < newLines.length) {
+      if (oldIndex < oldLines.length && newIndex < newLines.length && oldLines[oldIndex] === newLines[newIndex]) {
+        rows.push({ oldLine: oldLines[oldIndex], newLine: newLines[newIndex], oldNumber: oldIndex + 1, newNumber: newIndex + 1, kind: 'context' }); oldIndex++; newIndex++; continue;
+      }
+      let sync = null;
+      for (let distance = 1; distance <= 12 && !sync; distance++) {
+        for (let oldOffset = 0; oldOffset <= distance; oldOffset++) {
+          const newOffset = distance - oldOffset;
+          if (oldIndex + oldOffset < oldLines.length && newIndex + newOffset < newLines.length && oldLines[oldIndex + oldOffset] === newLines[newIndex + newOffset]) { sync = { oldOffset, newOffset }; break; }
+        }
+      }
+      const oldCount = sync ? sync.oldOffset : Math.min(1, oldLines.length - oldIndex);
+      const newCount = sync ? sync.newOffset : Math.min(1, newLines.length - newIndex);
+      const paired = Math.min(oldCount, newCount);
+      for (let offset = 0; offset < paired; offset++) rows.push({ oldLine: oldLines[oldIndex + offset], newLine: newLines[newIndex + offset], oldNumber: oldIndex + offset + 1, newNumber: newIndex + offset + 1, kind: 'change' });
+      for (let offset = paired; offset < oldCount; offset++) rows.push({ oldLine: oldLines[oldIndex + offset], newLine: '', oldNumber: oldIndex + offset + 1, newNumber: '', kind: 'removed' });
+      for (let offset = paired; offset < newCount; offset++) rows.push({ oldLine: '', newLine: newLines[newIndex + offset], oldNumber: '', newNumber: newIndex + offset + 1, kind: 'added' });
+      oldIndex += oldCount; newIndex += newCount;
+      if (!oldCount && !newCount) {
+        if (oldIndex < oldLines.length) { rows.push({ oldLine: oldLines[oldIndex], newLine: '', oldNumber: oldIndex + 1, newNumber: '', kind: 'removed' }); oldIndex++; }
+        if (newIndex < newLines.length) { rows.push({ oldLine: '', newLine: newLines[newIndex], oldNumber: '', newNumber: newIndex + 1, kind: 'added' }); newIndex++; }
+      }
+    }
+    return rows;
+  }
+  function makeDiffPane(title, side, rows) {
+    const pane = document.createElement('section'); pane.className = 'diff-pane';
+    const heading = document.createElement('div'); heading.className = 'diff-pane-title'; heading.textContent = title; pane.append(heading);
+    const list = document.createElement('div'); list.className = 'diff-rows';
+    rows.forEach(row => {
+      const line = document.createElement('div'); line.className = `diff-row diff-${row.kind}`;
+      const number = document.createElement('span'); number.className = 'diff-line-number'; number.textContent = row[side === 'old' ? 'oldNumber' : 'newNumber'] || '';
+      const content = document.createElement('span'); content.className = 'diff-line-text'; content.textContent = row[side === 'old' ? 'oldLine' : 'newLine'] || ' ';
+      line.append(number, content); list.append(line);
+    });
+    pane.append(list); return pane;
+  }
+  function persistUpdatedSource(message, files) {
+    if (!Array.isArray(message.files)) {
+      const legacy = parseLegacyProjectFiles(message.content);
+      message.content = legacy.prompt;
+      message.files = legacy.files;
+    }
+    message.files = files;
+    persistChats();
+  }
+  function showDiff(wrap, sourceMessageId, after) {
+    wrap.querySelector('.diff-review')?.remove();
+    const sourceMessage = findMessageById(sourceMessageId);
+    const sourceFiles = filesForUserMessage(sourceMessage);
+    if (!sourceFiles.length) return;
+    const panel = document.createElement('section'); panel.className = 'diff-review';
+    const toolbar = document.createElement('div'); toolbar.className = 'diff-toolbar';
+    const select = document.createElement('select'); select.setAttribute('aria-label', 'Choose source file to compare');
+    sourceFiles.forEach((file, index) => { const option = document.createElement('option'); option.value = String(index); option.textContent = file.name; select.append(option); });
+    const status = document.createElement('p'); status.className = 'diff-status'; status.setAttribute('aria-live', 'polite');
+    const columns = document.createElement('div'); columns.className = 'diff-columns';
+    const actions = document.createElement('div'); actions.className = 'diff-actions';
+    const apply = document.createElement('button'); apply.type = 'button'; apply.textContent = 'Apply to chat file';
+    const undo = document.createElement('button'); undo.type = 'button'; undo.textContent = 'Undo';
+    const download = document.createElement('button'); download.type = 'button'; download.textContent = 'Download copy';
+    toolbar.append(select); actions.append(apply, undo, download); panel.append(toolbar, status, columns, actions); wrap.append(panel);
+    let selectedFile = sourceFiles[0];
+    const render = () => {
+      const index = Number(select.value); selectedFile = sourceFiles[index];
+      const rows = alignedDiffRows(selectedFile.text, after);
+      columns.replaceChildren(makeDiffPane('Attached version', 'old', rows), makeDiffPane('Suggested version', 'new', rows));
+      const changed = selectedFile.text !== after;
+      status.textContent = changed ? `${rows.filter(row => row.kind !== 'context').length} changed line${rows.filter(row => row.kind !== 'context').length === 1 ? '' : 's'} in ${selectedFile.name}.` : `${selectedFile.name} already matches this suggestion.`;
+      apply.hidden = !changed; undo.hidden = typeof selectedFile.undoText !== 'string';
+    };
+    select.addEventListener('change', render);
+    apply.addEventListener('click', () => {
+      const index = Number(select.value), file = sourceMessage.files?.[index] || sourceFiles[index];
+      file.undoText = file.text; file.text = after;
+      persistUpdatedSource(sourceMessage, sourceFiles);
+      render(); status.textContent = `Applied to ${file.name}. Undo is available in this chat.`; showToast('Suggestion applied to the chat file.');
+    });
+    undo.addEventListener('click', () => {
+      const index = Number(select.value), file = sourceMessage.files?.[index] || sourceFiles[index];
+      file.text = file.undoText; delete file.undoText;
+      persistUpdatedSource(sourceMessage, sourceFiles);
+      render(); status.textContent = `Restored the previous version of ${file.name}.`; showToast('Change undone.');
+    });
+    download.addEventListener('click', () => {
+      const url = URL.createObjectURL(new Blob([after], { type: 'text/plain;charset=utf-8' }));
+      const link = document.createElement('a'); link.href = url; link.download = `${selectedFile.name.replace(/\.[^.]+$/, '')}.fixed${selectedFile.name.match(/\.[^.]+$/)?.[0] || '.txt'}`;
+      document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    });
+    render();
   }
   function runJavaScriptSafely(code, button) {
     const frame = document.createElement('iframe'); frame.sandbox = 'allow-scripts'; frame.className = 'safe-runner';
@@ -675,6 +888,8 @@
   }
   document.querySelectorAll('[data-settings-tab]').forEach(button => button.addEventListener('click', () => setSettingsCategory(button.dataset.settingsTab)));
   $('developerUnlock').addEventListener('click', unlockDeveloperTools);
+  $('saveCustomPrompt').addEventListener('click', saveCustomPrompt);
+  $('cancelCustomPrompt').addEventListener('click', resetPromptForm);
   $('developerCode').addEventListener('keydown', event => {
     if (event.key === 'Enter') { event.preventDefault(); unlockDeveloperTools(); }
   });
@@ -808,7 +1023,15 @@
   $('exportChats').addEventListener('click', () => {
     const markdown = savedChats.map(chat => [`# ${chat.title || 'Conversation'}`, ...(chat.messages || []).map(message => `## ${message.role === 'user' ? 'You' : 'ScriptFix AI'}\n\n${message.display || message.content}`)].join('\n\n')).join('\n\n---\n\n');
     const blob = new Blob([markdown || '# ScriptFix AI conversations\n\nNo saved chats.'], { type: 'text/markdown' });
-    const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'scriptfix-ai-chats.md'; link.click(); URL.revokeObjectURL(link.href);
+    const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = 'scriptfix-ai-chats.md'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+  $('backupChats').addEventListener('click', exportChatArchive);
+  $('importChats').addEventListener('click', () => $('chatArchivePicker').click());
+  $('chatArchivePicker').addEventListener('change', async event => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    await importChatArchive(file);
+    event.target.value = '';
   });
   $('attachButton').addEventListener('click', () => $('fileInput').click());
   $('uploadSide').addEventListener('click', () => $('fileInput').click());
@@ -822,7 +1045,15 @@
   });
   $('promptPreset').addEventListener('change', event => {
     if (!event.target.value) return;
-    promptBox.value = event.target.value; promptBox.dispatchEvent(new Event('input')); promptBox.focus(); event.target.value = '';
+    const prompt = event.target.value.startsWith('custom:')
+      ? customPrompts.find(item => item.id === event.target.value.slice(7))?.text
+      : event.target.value;
+    if (prompt) {
+      const existing = promptBox.value.trim();
+      promptBox.value = existing ? `${prompt}\n\n${existing}` : prompt;
+      promptBox.dispatchEvent(new Event('input')); promptBox.focus();
+    }
+    event.target.value = '';
   });
   document.querySelectorAll('.suggestion').forEach(button => button.addEventListener('click', () => { promptBox.value = button.dataset.prompt; promptBox.focus(); promptBox.dispatchEvent(new Event('input')); }));
   promptBox.addEventListener('input', () => { promptBox.style.height = 'auto'; promptBox.style.height = `${Math.min(promptBox.scrollHeight, 125)}px`; });
@@ -830,7 +1061,7 @@
   $('sendButton').addEventListener('click', send);
   document.addEventListener('keydown', event => { if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); $('newChat').click(); } });
   renderChatHistory();
-  $('dismissDesktopPromo').addEventListener('click', () => { localStorage.setItem('scriptfix.desktopPromoDismissed', '1'); updateDesktopPromo(); });
+  renderPromptOptions();
   setChatMode('fix');
   applyTheme();
   if (desktopApp) beginDesktopSetup();
@@ -881,14 +1112,34 @@
   }
   $('setupContinue').addEventListener('click', () => { $('ollamaSetupScreen').hidden = true; });
 
-  async function send() {
+  function puterFailureMessage(error) {
+    const detail = String(error?.message || 'No additional error details were returned.');
+    if (/sign.?in|log.?in|auth|unauthori[sz]ed|\b401\b/i.test(detail)) return `Puter needs you to sign in. Check whether a Puter sign-in window was blocked or dismissed, sign in, then retry.\n\nDetails: ${detail}`;
+    if (/limit|quota|credit|allowance|insufficient|\b402\b|\b429\b/i.test(detail)) return `Puter may have reached an account usage limit. Check Settings → Usage for your allowance; if it is exhausted, wait for the reset or review your Puter account before retrying.\n\nDetails: ${detail}`;
+    return `ScriptFix couldn’t reach Puter. Check your connection and whether your browser blocks Puter sign-in windows or scripts, then retry.\n\nDetails: ${detail}`;
+  }
+  function addPuterRetryActions(errorRow) {
+    const savedError = activeChat?.messages?.at(-1);
+    if (savedError?.role === 'assistant') { savedError.isError = true; persistChats(); }
+    const actions = document.createElement('div'); actions.className = 'puter-error-actions';
+    const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'puter-retry'; retry.textContent = 'Try again';
+    retry.addEventListener('click', () => {
+      errorRow.remove();
+      const last = activeChat?.messages?.at(-1);
+      if (last?.isError) { activeChat.messages.pop(); persistChats(); }
+      send(true);
+    });
+    const account = document.createElement('a'); account.href = 'https://puter.com/'; account.target = '_blank'; account.rel = 'noopener noreferrer'; account.textContent = 'Open Puter';
+    actions.append(retry, account); errorRow.querySelector('.bubble')?.append(actions);
+  }
+  async function send(retryExisting = false) {
     if (busy) return;
-    const userText = promptBox.value.trim();
-    if (!userText && !attachedFiles.length) { showToast('Write a message or attach one or more files first.'); promptBox.focus(); return; }
+    const userText = retryExisting ? '' : promptBox.value.trim();
+    if (!retryExisting && !userText && !attachedFiles.length) { showToast('Write a message or attach one or more files first.'); promptBox.focus(); return; }
     const cfg = loadSettings();
     if (localFileApp && !desktopApp) { showToast('Open ScriptFix AI from a local web server or hosted website to connect to an AI service.'); return; }
     if (cfg.provider === 'cloud' && !cfg.key) { openSettings(); showToast('Add your API key to get started.'); return; }
-    const filesForRequest = attachedFiles;
+    const filesForRequest = retryExisting ? [] : attachedFiles;
     const displayText = [userText, ...filesForRequest.map(file => `📎 ${file.name}`)].filter(Boolean).join('\n');
     const chatMode = activeChat?.mode || selectedMode;
     const system = chatMode === 'create'
@@ -896,9 +1147,17 @@
       : chatMode === 'talk'
       ? 'You are ScriptFix AI in Talk About Code mode, a clear, curious, and friendly programming conversation partner. Help users understand code, explore concepts, compare technical approaches, and think through tradeoffs. Match the user’s experience level, explain terms plainly, and use short examples when they help. Do not provide a full replacement script unless the user asks for one. If code has a likely bug or risk, mention it clearly. Never claim to have executed code unless you actually did.'
       : 'You are ScriptFix AI in Fix Code mode, a careful and friendly programming assistant. Help users debug, explain, and improve code. When suggesting a corrected script, include a complete runnable version in a fenced code block with the language label. Explain the important changes briefly. Preserve the user’s intent. Call out assumptions and potentially destructive behavior. Never claim to have executed code unless you actually did.';
-    let userContent = userText || (chatMode === 'talk' ? 'Please explain this code in plain language.' : 'Please inspect this script for bugs and suggest a corrected version.');
-    if (filesForRequest.length) userContent += filesForRequest.map(file => `\n\nProject file: ${file.name}\n\n\`\`\`${file.name.split('.').pop()}\n${file.text}\n\`\`\``).join('');
-    addMessage('user', displayText, false, false, userContent);
+    if (retryExisting) {
+      if (!activeChat?.messages?.some(message => message.role === 'user')) { showToast('There is no earlier message to retry.'); return; }
+    } else {
+      const userContent = userText || (chatMode === 'talk' ? 'Please explain this code in plain language.' : 'Please inspect this script for bugs and suggest a corrected version.');
+      addMessage('user', displayText, false, false, userContent);
+      const currentUserMessage = activeChat.messages.at(-1);
+      if (filesForRequest.length) currentUserMessage.files = filesForRequest.map(file => ({ name: file.name, text: file.text }));
+      currentUserMessage.prompt = userContent;
+      persistChats();
+    }
+    const sourceMessageId = latestSourceMessage()?.id || '';
     promptBox.value = ''; promptBox.style.height = 'auto'; attachedFiles = []; $('fileLabel').textContent = ''; $('fileInput').value = '';
     busy = true; $('sendButton').disabled = true;
     const typingRow = addMessage('assistant', '', true);
@@ -908,14 +1167,14 @@
         if (!window.puter?.ai?.chat) throw new Error('Puter Cloud could not load. Check your internet connection and reopen the app.');
         const result = await window.puter.ai.chat([
           { role: 'system', content: system },
-          ...activeChat.messages.map(message => ({ role: message.role, content: message.content }))
+          ...conversationMessages()
         ], { model: cfg.puterModel || DEFAULT_PUTER_MODEL, normalize: true, stream: true });
         const bubble = typingRow.querySelector('.bubble'); bubble.textContent = '';
         const streamedReply = await readPuterStream(result, text => { bubble.textContent = text; scrollToBottom(); });
         const reply = streamedReply || result?.message?.content;
         if (!reply) throw new Error('Puter returned an empty response. Try again or choose another model in AI settings.');
-        renderAssistant(bubble, reply);
-        const chat = beginChat(); chat.messages.push({ role: 'assistant', content: reply, display: reply }); persistChats();
+        renderAssistant(bubble, reply, sourceMessageId);
+        const chat = beginChat(); chat.messages.push({ id: newMessageId(), role: 'assistant', content: reply, display: reply, ...(sourceMessageId ? { sourceMessageId } : {}) }); persistChats();
         return;
       }
       const local = cfg.provider === 'local';
@@ -926,7 +1185,7 @@
       const response = await fetch(endpoint, {
         method: 'POST', headers,
         ...(local && desktopApp && !localRunner ? { targetAddressSpace: 'loopback' } : {}),
-        body: JSON.stringify({ model: local ? cfg.localModel : cfg.model, messages: [{ role: 'system', content: system }, ...activeChat.messages.map(message => ({ role: message.role, content: message.content }))], temperature: 0.2, stream: true })
+        body: JSON.stringify({ model: local ? cfg.localModel : cfg.model, messages: [{ role: 'system', content: system }, ...conversationMessages()], temperature: 0.2, stream: true })
       });
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
@@ -944,21 +1203,26 @@
       const bubble = typingRow.querySelector('.bubble'); bubble.textContent = '';
       const reply = await readStream(response, text => { bubble.textContent = text; scrollToBottom(); });
       if (!reply) throw new Error('The API returned an empty response. Check that your selected model supports streaming chat completions.');
-      renderAssistant(bubble, reply);
-      const chat = beginChat(); chat.messages.push({ role: 'assistant', content: reply, display: reply }); persistChats();
+      renderAssistant(bubble, reply, sourceMessageId);
+      const chat = beginChat(); chat.messages.push({ id: newMessageId(), role: 'assistant', content: reply, display: reply, ...(sourceMessageId ? { sourceMessageId } : {}) }); persistChats();
     } catch (error) {
       typingRow.remove();
+      let errorMessage;
       if (error.isCreditBalanceError) {
-        addMessage('assistant', `The API responded with a billing error: it reports that the selected organization has no available API credits. Your API key can still be valid; API billing is separate from a ChatGPT subscription.\n\nCheck the billing balance for the organization and project that own this key. If the balance is positive, review the organization or project spend limit and confirm that the key belongs to the selected project.\n\nBilling settings: https://platform.openai.com/settings/organization/billing/\n${error.message.split('\n').slice(1).join('\n')}`);
+        errorMessage = `The API responded with a billing error: it reports that the selected organization has no available API credits. Your API key can still be valid; API billing is separate from a ChatGPT subscription.\n\nCheck the billing balance for the organization and project that own this key. If the balance is positive, review the organization or project spend limit and confirm that the key belongs to the selected project.\n\nBilling settings: https://platform.openai.com/settings/organization/billing/\n${error.message.split('\n').slice(1).join('\n')}`;
       } else if (error.isApiResponse) {
-        addMessage('assistant', `The API received the request but rejected it. Check the API error details below, then verify the key, model, and the selected organization or project in AI settings.\n\n${error.message}`);
+        errorMessage = `The API received the request but rejected it. Check the API error details below, then verify the key, model, and the selected organization or project in AI settings.\n\n${error.message}`;
       } else {
-        addMessage('assistant', cfg.provider === 'local'
+        errorMessage = cfg.provider === 'local'
           ? `Ollama is a deprecated AI option, if this breaks, please resort to OpenAI or Puter, as this won't be fixed.\n\n${error.message}`
           : cfg.provider === 'puter'
-          ? `I couldn’t connect to Puter Cloud. Check your internet connection, allow the Puter sign-in window if prompted, and try again. If your account has reached its usage limit, check your allowance in settings > allowance\n\n${error.message}`
-          : `I couldn’t connect to the AI service. Check your network connection, API endpoint, and whether the provider allows requests from a browser (CORS).\n\n${error.message}`);
+          ? puterFailureMessage(error)
+          : `I couldn’t connect to the AI service. Check your network connection, API endpoint, and whether the provider allows requests from a browser (CORS).\n\n${error.message}`;
       }
+      const errorRow = addMessage('assistant', errorMessage);
+      const savedError = activeChat?.messages?.at(-1);
+      if (savedError?.role === 'assistant') { savedError.isError = true; persistChats(); }
+      if (cfg.provider === 'puter') addPuterRetryActions(errorRow);
     } finally { busy = false; $('sendButton').disabled = false; promptBox.focus(); }
   }
 })();
