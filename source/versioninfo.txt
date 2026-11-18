@@ -1,4 +1,8 @@
-ScriptFix AI 2.4.0
+ScriptFix AI 2.5.0
+
+What's new in 2.5.0
+- Added five soft accent palettes to Appearance: Sage, Rose, Lavender, Sky, and Peach. The selected palette is saved in this browser and works in light and dark mode.
+
 
 What's new in 2.4.0
 - Compare AI suggestions with attached files before applying them to the saved chat copy; undo changes or download a separate copy.
@@ -7,14 +11,11 @@ What's new in 2.4.0
 - Retry Puter requests and see clearer guidance when a request fails.
 - Keep failed request messages out of future AI context.
 
-ScriptFix AI 2.3.0
 
 What's new in 2.3.0
 - Added a code-gated Developer section with a JSON text editor.
 - Sort JSON object keys and matching arrays by a field such as title or author; format and download a separate copy.
 
-
-ScriptFix AI 2.2.0.1
 
 What's new in 2.2.0.1
 -fixes

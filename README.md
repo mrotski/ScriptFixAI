@@ -18,6 +18,7 @@ Messages and attached code are sent to the provider you choose. Do not include s
 - Fix code, create code, and talk about programming in separate chat modes.
 - Attach several small project files and review suggested changes against the attached version before applying them to the saved chat copy. Download a separate fixed copy or undo an applied change.
 - Save reusable instructions in Settings → Prompt library.
+- Choose a Sage, Rose, Lavender, Sky, or Peach pastel accent in Appearance, with light and dark mode support.
 - Search, export, back up, and import saved chats. Chat backups are JSON files; Markdown export is for reading and sharing.
 - Track a personal API budget estimate in Settings → Usage from your budget and token usage returned by the API. Puter users can view the monthly allowance reported by Puter when it is available. Neither view is a complete live account billing page.
 - Read release notes from `source/versioninfo.txt` and change the displayed version in `source/version.txt`.

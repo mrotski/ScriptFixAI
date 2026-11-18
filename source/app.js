@@ -275,6 +275,15 @@
     const toggle = $('darkModeToggle');
     if (toggle) toggle.checked = dark;
   }
+  const PALETTE_NAMES = ['sage', 'rose', 'lavender', 'sky', 'peach'];
+  function applyPalette() {
+    const saved = localStorage.getItem('scriptfix.palette') || 'sage';
+    const palette = PALETTE_NAMES.includes(saved) ? saved : 'sage';
+    document.body.dataset.palette = palette;
+    document.querySelectorAll('.palette-choice').forEach(button => {
+      button.setAttribute('aria-pressed', String(button.dataset.palette === palette));
+    });
+  }
   function readUsageConfig() {
     try { return JSON.parse(localStorage.getItem('scriptfix.usageConfig') || 'null'); }
     catch { return null; }
@@ -936,6 +945,11 @@
     localStorage.setItem('scriptfix.theme', $('darkModeToggle').checked ? 'dark' : 'light');
     applyTheme();
   });
+  document.querySelectorAll('.palette-choice').forEach(button => button.addEventListener('click', () => {
+    if (!PALETTE_NAMES.includes(button.dataset.palette)) return;
+    localStorage.setItem('scriptfix.palette', button.dataset.palette);
+    applyPalette();
+  }));
   $('provider').addEventListener('change', syncProviderSettings);
   $('model').addEventListener('change', () => {
     if ($('provider').value === 'cloud') {
@@ -1064,6 +1078,7 @@
   renderPromptOptions();
   setChatMode('fix');
   applyTheme();
+  applyPalette();
   if (desktopApp) beginDesktopSetup();
   const savedActiveId = localStorage.getItem('scriptfix.activeChat');
   if (savedActiveId && savedChats.some(chat => chat.id === savedActiveId)) openChat(savedActiveId);
